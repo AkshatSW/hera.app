@@ -1,0 +1,192 @@
+{% extends "dashboard/base.html" %}
+{% load static %}
+
+{% block title %}SMS Center{% endblock %}
+{% block page_title %}SMS Center{% endblock %}
+{% block page_subtitle %}Send messages and view delivery history{% endblock %}
+
+{% block content %}
+<div class="sms-layout">
+    <!-- Driver List -->
+    <div class="sms-drivers">
+        <div class="sms-drivers-header">
+            <h3>Drivers</h3>
+            <input type="search" id="driverSearch" placeholder="Search drivers...">
+        </div>
+        <div class="sms-drivers-list" id="driverList">
+            <div class="sms-empty" style="padding:32px 16px;">
+                <span class="spinner"></span>
+                Loading...
+            </div>
+        </div>
+    </div>
+
+    <!-- Conversation -->
+    <div class="sms-conversation">
+        <div class="sms-conv-header" id="convHeader">
+            <div>
+                <div class="sms-conv-header-name" id="convName">Select a driver</div>
+                <div class="sms-conv-header-phone" id="convPhone">Choose from the list to view conversation</div>
+            </div>
+        </div>
+        <div class="sms-messages" id="convMessages">
+            <div class="sms-empty">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                Select a driver to view messages
+            </div>
+        </div>
+        <div class="sms-compose" id="composeArea" style="display:none;">
+            <textarea id="smsInput" placeholder="Type a message..." rows="1"></textarea>
+            <button class="btn btn-primary" id="sendBtn" onclick="sendMessage()">
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+                Send
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let allDrivers = [];
+    let selectedDriverId = null;
+    let selectedDriverName = '';
+    let selectedDriverPhone = '';
+
+    // Load drivers
+    async function loadDrivers() {
+        const container = document.getElementById('driverList');
+        try {
+            const resp = await fetch(`${API_BASE}/drivers/?page_size=500`);
+            const data = await resp.json();
+            allDrivers = data.results || data;
+            renderDrivers(allDrivers);
+        } catch(e) {
+            container.innerHTML = '<div class="sms-empty" style="padding:32px 16px;color:var(--hera-red);">Failed to load drivers</div>';
+        }
+    }
+
+    function renderDrivers(drivers) {
+        const container = document.getElementById('driverList');
+        if (!drivers.length) {
+            container.innerHTML = '<div class="sms-empty" style="padding:32px 16px;">No drivers found</div>';
+            return;
+        }
+        container.innerHTML = drivers.map(d => {
+            const initials = d.name.split(' ').map(w => w[0]).join('').substring(0,2).toUpperCase();
+            const colors = ['#3b82f6','#8b5cf6','#ec4899','#f59e0b','#10b981','#6366f1','#ef4444'];
+            const color = colors[d.id % colors.length];
+            return `
+                <div class="sms-driver-item ${selectedDriverId === d.id ? 'active' : ''}"
+                     data-id="${d.id}" data-name="${escapeHtml(d.name)}" data-phone="${escapeHtml(d.phone)}"
+                     onclick="selectDriver(${d.id}, '${escapeHtml(d.name)}', '${escapeHtml(d.phone)}')">
+                    <div class="sms-driver-avatar" style="background:${color}">${initials}</div>
+                    <div class="sms-driver-info">
+                        <div class="sms-driver-name">${escapeHtml(d.name)}</div>
+                        <div class="sms-driver-phone">${escapeHtml(d.phone)}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // Search
+    document.getElementById('driverSearch').addEventListener('input', e => {
+        const q = e.target.value.toLowerCase();
+        renderDrivers(allDrivers.filter(d =>
+            d.name.toLowerCase().includes(q) || d.phone.includes(q)
+        ));
+    });
+
+    // Select driver
+    function selectDriver(id, name, phone) {
+        selectedDriverId = id;
+        selectedDriverName = name;
+        selectedDriverPhone = phone;
+
+        document.getElementById('convName').textContent = name;
+        document.getElementById('convPhone').textContent = phone;
+        document.getElementById('composeArea').style.display = 'flex';
+
+        // Update active state
+        document.querySelectorAll('.sms-driver-item').forEach(el => {
+            el.classList.toggle('active', parseInt(el.dataset.id) === id);
+        });
+
+        loadConversation(id);
+    }
+
+    // Load conversation
+    async function loadConversation(driverId) {
+        const container = document.getElementById('convMessages');
+        container.innerHTML = '<div class="sms-empty"><span class="spinner"></span> Loading messages...</div>';
+
+        try {
+            const resp = await fetch(`${API_BASE}/sms/history/?driver_id=${driverId}`);
+            const messages = await resp.json();
+
+            if (!messages.length) {
+                container.innerHTML = '<div class="sms-empty">No messages yet</div>';
+                return;
+            }
+
+            container.innerHTML = messages.map(m => `
+                <div class="sms-bubble">
+                    <div class="sms-bubble-body">${escapeHtml(m.message)}</div>
+                    <div class="sms-bubble-meta">
+                        ${badgeHtml(m.status)}
+                        ${m.sent_at ? formatDatetime(m.sent_at) : 'Queued'}
+                    </div>
+                </div>
+            `).join('');
+
+            container.scrollTop = container.scrollHeight;
+        } catch(e) {
+            container.innerHTML = '<div class="sms-empty" style="color:var(--hera-red)">Error loading messages</div>';
+        }
+    }
+
+    // Send message
+    async function sendMessage() {
+        if (!selectedDriverId) return;
+        const input = document.getElementById('smsInput');
+        const message = input.value.trim();
+        if (!message) return;
+
+        const btn = document.getElementById('sendBtn');
+        btn.disabled = true;
+
+        try {
+            const resp = await fetch(`${API_BASE}/sms/send/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken(),
+                },
+                body: JSON.stringify({ driver_id: selectedDriverId, message }),
+            });
+
+            if (resp.ok) {
+                input.value = '';
+                setTimeout(() => loadConversation(selectedDriverId), 600);
+            } else {
+                const data = await resp.json();
+                alert('Error: ' + (data.error || 'Failed to send'));
+            }
+        } catch(e) {
+            alert('Network error');
+        }
+        btn.disabled = false;
+    }
+
+    // Enter to send
+    document.getElementById('smsInput').addEventListener('keydown', e => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+
+    loadDrivers();
+</script>
+{% endblock %}

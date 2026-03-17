@@ -1,0 +1,119 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Hera{% endblock %} — PacTrack, Inc</title>
+    <link rel="icon" href="{% static 'img/heralogo.png' %}" type="image/png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/hera.css' %}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Sidebar -->
+    <nav class="sidebar">
+        <div class="sidebar-brand">
+            <img src="{% static 'img/heralogo.png' %}" alt="Hera">
+            <div class="sidebar-brand-text">
+                <div class="sidebar-brand-name">HERA</div>
+                <div class="sidebar-brand-company">PacTrack, Inc</div>
+            </div>
+        </div>
+        <div class="sidebar-nav">
+            <div class="sidebar-section-label">Operations</div>
+            <a href="{% url 'dashboard' %}" class="sidebar-link {% if active_page == 'home' %}active{% endif %}">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1h-2z"/></svg>
+                <span>Roster</span>
+            </a>
+            <a href="{% url 'associates' %}" class="sidebar-link {% if active_page == 'associates' %}active{% endif %}">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                <span>Associates</span>
+            </a>
+            <a href="{% url 'vehicles' %}" class="sidebar-link {% if active_page == 'vehicles' %}active{% endif %}">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7h8m-8 5h8m-4 5v-2m-6 2h12a2 2 0 002-2V7a2 2 0 00-2-2H6a2 2 0 00-2 2v8a2 2 0 002 2zm-2 0h16l1 2H3l1-2z"/></svg>
+                <span>Vehicles</span>
+            </a>
+
+            <div class="sidebar-section-label">Communication</div>
+            <a href="{% url 'sms-center' %}" class="sidebar-link {% if active_page == 'sms' %}active{% endif %}">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                <span>SMS Center</span>
+            </a>
+        </div>
+        <div class="sidebar-footer">
+            {% if user.dsp_name %}
+            <div style="font-size:12px;font-weight:600;color:var(--hera-gray-300);margin-bottom:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ user.dsp_name }}</div>
+            {% endif %}
+            <form method="post" action="{% url 'logout' %}" style="margin-bottom:12px;">
+                {% csrf_token %}
+                <button type="submit" class="sidebar-link" style="width:100%;border:none;background:none;cursor:pointer;font-family:inherit;font-size:inherit;color:inherit;text-align:left;">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 01-2 2H6a2 2 0 01-2-2V7a2 2 0 012-2h5a2 2 0 012 2v1"/></svg>
+                    <span>Logout</span>
+                </button>
+            </form>
+            &copy; 2026 PacTrack, Inc
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="page-header">
+            <div>
+                <h1>{% block page_title %}Dashboard{% endblock %}</h1>
+                <div class="page-header-sub">{% block page_subtitle %}{% endblock %}</div>
+            </div>
+            <div class="page-actions">
+                {% block page_actions %}{% endblock %}
+            </div>
+        </div>
+        <div class="page-body">
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '/api';
+
+        function getCsrfToken() {
+            let val = null;
+            document.cookie.split(';').forEach(c => {
+                c = c.trim();
+                if (c.startsWith('csrftoken=')) val = decodeURIComponent(c.substring(10));
+            });
+            return val;
+        }
+
+        function formatDatetime(str) {
+            if (!str) return '—';
+            const d = new Date(str);
+            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' ' +
+                   d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        }
+
+        function formatDate(str) {
+            if (!str) return '—';
+            const d = new Date(str + 'T00:00:00');
+            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        }
+
+        function escapeHtml(text) {
+            const el = document.createElement('div');
+            el.textContent = text;
+            return el.innerHTML;
+        }
+
+        function badgeHtml(status) {
+            const cls = {
+                'active': 'badge-active', 'inactive': 'badge-inactive',
+                'pending': 'badge-pending', 'queued': 'badge-queued',
+                'sent': 'badge-sent', 'delivered': 'badge-delivered', 'failed': 'badge-failed',
+            }[status] || 'badge-pending';
+            return `<span class="badge ${cls}">${status}</span>`;
+        }
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

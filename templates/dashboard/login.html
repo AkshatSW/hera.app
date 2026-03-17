@@ -1,0 +1,130 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login — Hera</title>
+    <link rel="icon" href="{% static 'img/heralogo.png' %}" type="image/png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/hera.css' %}">
+    <style>
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        .login-card {
+            background: var(--hera-white);
+            border-radius: var(--hera-radius-xl);
+            box-shadow: var(--hera-shadow-lg);
+            border: 1px solid var(--hera-gray-200);
+            width: 100%;
+            max-width: 400px;
+            padding: 40px 36px 36px;
+        }
+        .login-brand {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 32px;
+        }
+        .login-brand img {
+            width: 44px;
+            height: 44px;
+        }
+        .login-brand-name {
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: 2px;
+            color: var(--hera-gray-900);
+        }
+        .login-brand-company {
+            font-size: 11px;
+            color: var(--hera-gray-400);
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+        .login-form .form-group {
+            margin-bottom: 18px;
+        }
+        .login-form label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--hera-gray-700);
+            margin-bottom: 6px;
+        }
+        .login-form .btn-primary {
+            width: 100%;
+            padding: 12px;
+            font-size: 14px;
+            margin-top: 6px;
+        }
+        .login-links {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 13px;
+            color: var(--hera-gray-400);
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+        }
+        .login-links a {
+            color: var(--hera-accent);
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .login-links a:hover {
+            text-decoration: underline;
+        }
+        .login-error {
+            background: #fef2f2;
+            color: var(--hera-red);
+            font-size: 13px;
+            font-weight: 500;
+            padding: 10px 14px;
+            border-radius: 8px;
+            border: 1px solid #fecaca;
+            margin-bottom: 18px;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <div class="login-brand">
+            <img src="{% static 'img/heralogo.png' %}" alt="Hera">
+            <div>
+                <div class="login-brand-name">HERA</div>
+                <div class="login-brand-company">PacTrack, Inc</div>
+            </div>
+        </div>
+
+        {% if error %}
+        <div class="login-error">{{ error }}</div>
+        {% endif %}
+
+        <form method="post" class="login-form">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" placeholder="you@company.com" required autofocus>
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" placeholder="Enter your password" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Sign In</button>
+        </form>
+        <div class="login-links">
+            <a href="{% url 'forgot-password' %}">Forgot Password?</a>
+            <span>&middot;</span>
+            <a href="{% url 'signup' %}">Sign Up</a>
+        </div>
+    </div>
+</body>
+</html>

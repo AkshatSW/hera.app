@@ -1,0 +1,129 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Phone — Hera</title>
+    <link rel="icon" href="{% static 'img/heralogo.png' %}" type="image/png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/hera.css' %}">
+    <style>
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        .verify-card {
+            background: var(--hera-white);
+            border-radius: var(--hera-radius-xl);
+            box-shadow: var(--hera-shadow-lg);
+            border: 1px solid var(--hera-gray-200);
+            width: 100%;
+            max-width: 420px;
+            padding: 40px 36px 36px;
+            text-align: center;
+        }
+        .verify-icon {
+            width: 56px;
+            height: 56px;
+            margin: 0 auto 20px;
+            background: var(--hera-accent-light);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--hera-accent);
+        }
+        .verify-icon svg {
+            width: 28px;
+            height: 28px;
+        }
+        .verify-title {
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--hera-gray-900);
+            margin-bottom: 8px;
+        }
+        .verify-subtitle {
+            font-size: 13.5px;
+            color: var(--hera-gray-500);
+            margin-bottom: 28px;
+            line-height: 1.5;
+        }
+        .verify-subtitle strong {
+            color: var(--hera-gray-700);
+        }
+        .verify-form .form-group {
+            margin-bottom: 18px;
+        }
+        .verify-form input {
+            text-align: center;
+            font-size: 20px;
+            letter-spacing: 6px;
+            font-weight: 700;
+            padding: 14px;
+        }
+        .verify-form .btn-primary {
+            width: 100%;
+            padding: 12px;
+            font-size: 14px;
+        }
+        .verify-error {
+            background: #fef2f2;
+            color: var(--hera-red);
+            font-size: 13px;
+            font-weight: 500;
+            padding: 10px 14px;
+            border-radius: 8px;
+            border: 1px solid #fecaca;
+            margin-bottom: 18px;
+        }
+        .verify-resend {
+            margin-top: 20px;
+            font-size: 13px;
+            color: var(--hera-gray-400);
+        }
+        .verify-resend a {
+            color: var(--hera-accent);
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .verify-resend a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="verify-card">
+        <div class="verify-icon">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+            </svg>
+        </div>
+        <div class="verify-title">Check Your Phone</div>
+        <div class="verify-subtitle">
+            We sent a 6-digit code to <strong>{{ phone }}</strong>.<br>
+            Enter it below to verify your account.
+        </div>
+
+        {% if error %}
+        <div class="verify-error">{{ error }}</div>
+        {% endif %}
+
+        <form method="post" class="verify-form">
+            {% csrf_token %}
+            <div class="form-group">
+                <input type="text" id="otp_code" name="otp_code" placeholder="000000" maxlength="6" pattern="[0-9]{6}" required autofocus autocomplete="one-time-code">
+            </div>
+            <button type="submit" class="btn btn-primary">Verify Phone</button>
+        </form>
+        <div class="verify-resend">
+            Didn't get the code? <a href="{% url 'resend-otp' %}">Resend</a>
+        </div>
+    </div>
+</body>
+</html>

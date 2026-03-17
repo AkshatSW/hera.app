@@ -1,0 +1,88 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Too Many Requests — Hera</title>
+    <link rel="icon" href="{% static 'img/heralogo.png' %}" type="image/png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/hera.css' %}">
+    <style>
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        .error-card {
+            background: var(--hera-white);
+            border-radius: var(--hera-radius-xl);
+            box-shadow: var(--hera-shadow-lg);
+            border: 1px solid var(--hera-gray-200);
+            width: 100%;
+            max-width: 420px;
+            padding: 40px 36px 36px;
+            text-align: center;
+        }
+        .error-icon {
+            width: 56px;
+            height: 56px;
+            margin: 0 auto 20px;
+            background: #fef2f2;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--hera-red);
+        }
+        .error-icon svg {
+            width: 28px;
+            height: 28px;
+        }
+        .error-title {
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--hera-gray-900);
+            margin-bottom: 8px;
+        }
+        .error-subtitle {
+            font-size: 13.5px;
+            color: var(--hera-gray-500);
+            margin-bottom: 28px;
+            line-height: 1.5;
+        }
+        .error-links {
+            margin-top: 20px;
+            font-size: 13px;
+            color: var(--hera-gray-400);
+        }
+        .error-links a {
+            color: var(--hera-accent);
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .error-links a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="error-card">
+        <div class="error-icon">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+        </div>
+        <div class="error-title">Too Many Requests</div>
+        <div class="error-subtitle">
+            {{ message|default:"You've made too many attempts. Please wait a few minutes before trying again." }}
+        </div>
+        <div class="error-links">
+            <a href="{% url 'login' %}">Back to Sign In</a>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,474 @@
+{% extends "dashboard/base.html" %}
+{% load static %}
+
+{% block title %}Roster{% endblock %}
+{% block page_title %}Roster Management{% endblock %}
+{% block page_subtitle %}Upload rosters and manage daily route assignments{% endblock %}
+
+{% block page_actions %}
+<a href="{% static 'roster_format.xlsx' %}" download class="btn btn-outline">
+    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V3"/></svg>
+    Download Format
+</a>
+<button class="btn btn-primary" id="openUploadBtn">
+    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5-5m0 0l5 5m-5-5v12"/></svg>
+    Upload Roster
+</button>
+{% endblock %}
+
+{% block content %}
+<!-- Last Import Info -->
+<div style="margin-bottom:16px;font-size:13px;color:var(--hera-gray-500);">
+    Last Import: <span id="lastImportDate" style="font-weight:600;color:var(--hera-gray-700);">—</span>
+</div>
+
+<!-- Stats -->
+<div class="stats-row" id="stats-row">
+    <div class="stat-card">
+        <div class="stat-icon blue">
+            <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        </div>
+        <div class="stat-info">
+            <div class="stat-value" id="stat-total">—</div>
+            <div class="stat-label">Total Assignments</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon green">
+            <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        </div>
+        <div class="stat-info">
+            <div class="stat-value" id="stat-delivered">—</div>
+            <div class="stat-label">SMS Sent / Delivered</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon yellow">
+            <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        </div>
+        <div class="stat-info">
+            <div class="stat-value" id="stat-pending">—</div>
+            <div class="stat-label">Pending / Queued</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon red">
+            <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        </div>
+        <div class="stat-info">
+            <div class="stat-value" id="stat-failed">—</div>
+            <div class="stat-label">Failed</div>
+        </div>
+    </div>
+</div>
+
+<!-- Upload Modal -->
+<div class="modal-overlay" id="uploadModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Upload Roster File</h3>
+            <button class="modal-close" onclick="closeUploadModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="upload-zone" id="uploadZone">
+                <input type="file" id="rosterFile" accept=".xlsx,.xls">
+                <div class="upload-zone-icon">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                </div>
+                <div class="upload-zone-title">Drop your Excel roster here</div>
+                <div class="upload-zone-sub">or click to browse — .xlsx files only</div>
+                <div class="upload-zone-file" id="fileName"></div>
+            </div>
+            <div class="alert" id="uploadResult"></div>
+            <div style="margin-top:12px;display:flex;align-items:center;justify-content:space-between;">
+                <details style="font-size:12.5px;color:var(--hera-gray-500);">
+                    <summary style="cursor:pointer;font-weight:600;">Required Excel columns</summary>
+                    <div style="margin-top:8px;padding:10px;background:var(--hera-gray-50);border-radius:6px;font-family:monospace;font-size:12px;line-height:1.8;">
+                        Driver Name &bull; Phone &bull; Vehicle Code &bull; Vehicle Plate &bull; Route &bull; Staging &bull; Pad &bull; Wave Time &bull; Date
+                    </div>
+                </details>
+                <a href="{% static 'roster_template.xlsx' %}" download class="btn btn-outline btn-sm" style="flex-shrink:0;">
+                    <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V3"/></svg>
+                    Sample Template
+                </a>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeUploadModal()">Cancel</button>
+            <button class="btn btn-primary" id="uploadBtn" disabled onclick="uploadRoster()">
+                Upload &amp; Process
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Send SMS Confirmation Modal -->
+<div class="modal-overlay" id="smsConfirmModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Send SMS Notifications</h3>
+            <button class="modal-close" onclick="closeSmsModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div style="text-align:center;padding:8px 0 16px;">
+                <svg width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="var(--hera-accent)" stroke-width="1.5" style="margin-bottom:8px;"><path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                <div style="font-size:15px;font-weight:600;color:var(--hera-gray-800);">
+                    <span id="smsCount">0</span> assignments ready to notify
+                </div>
+                <div style="font-size:13px;color:var(--hera-gray-500);margin-top:4px;">
+                    Would you like to send SMS messages to all assigned drivers?
+                </div>
+            </div>
+            <div class="alert" id="smsResult"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeSmsModal()">Not Now</button>
+            <button class="btn btn-primary" id="sendSmsBtn" onclick="sendSmsForAssignments()">
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+                Send SMS
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Assignments Table -->
+<div class="card">
+    <div class="card-header">
+        <h2>Route Assignments</h2>
+        <div style="display:flex;gap:8px;align-items:center;">
+            <button class="btn btn-primary btn-sm" id="sendPendingBtn" style="display:none;" onclick="sendAllPending()">
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+                Send Pending SMS
+            </button>
+            <input type="date" id="filterDate" style="width:160px;" onchange="loadAssignments()">
+            <button class="btn btn-outline btn-sm" onclick="document.getElementById('filterDate').value='';loadAssignments()">Clear</button>
+        </div>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Driver</th>
+                    <th>Vehicle</th>
+                    <th>Route</th>
+                    <th>Staging</th>
+                    <th>Pad</th>
+                    <th>Wave Time</th>
+                    <th>Date</th>
+                    <th>SMS Status</th>
+                    <th style="width:90px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="assignmentsBody">
+                <tr class="empty-row"><td colspan="9"><span class="spinner"></span> Loading assignments...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let pendingAssignmentIds = [];
+
+    // ===== Upload Modal =====
+    const uploadModal = document.getElementById('uploadModal');
+    const uploadZone = document.getElementById('uploadZone');
+    const rosterFile = document.getElementById('rosterFile');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const fileNameEl = document.getElementById('fileName');
+    const uploadResult = document.getElementById('uploadResult');
+
+    document.getElementById('openUploadBtn').addEventListener('click', () => {
+        uploadModal.classList.add('show');
+    });
+
+    function closeUploadModal() {
+        uploadModal.classList.remove('show');
+    }
+
+    uploadZone.addEventListener('click', () => rosterFile.click());
+    uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+    uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+    uploadZone.addEventListener('drop', e => {
+        e.preventDefault();
+        uploadZone.classList.remove('dragover');
+        if (e.dataTransfer.files.length) { rosterFile.files = e.dataTransfer.files; onFileSelect(); }
+    });
+    rosterFile.addEventListener('change', onFileSelect);
+
+    function onFileSelect() {
+        if (rosterFile.files.length) {
+            fileNameEl.textContent = rosterFile.files[0].name;
+            uploadBtn.disabled = false;
+            uploadResult.classList.remove('show');
+        }
+    }
+
+    async function uploadRoster() {
+        if (!rosterFile.files.length) return;
+        uploadBtn.disabled = true;
+        uploadBtn.innerHTML = '<span class="spinner"></span> Processing...';
+        uploadResult.classList.remove('show');
+
+        const fd = new FormData();
+        fd.append('file', rosterFile.files[0]);
+
+        try {
+            const resp = await fetch(`${API_BASE}/roster/upload/`, {
+                method: 'POST', body: fd,
+                headers: { 'X-CSRFToken': getCsrfToken() },
+            });
+            const data = await resp.json();
+            if (resp.ok) {
+                let html = `<strong>Upload Successful</strong><br>`;
+                html += `Drivers created: ${data.drivers_created} &bull; Vehicles created: ${data.vehicles_created}<br>`;
+                html += `Assignments created: ${data.assignments_created}`;
+                if (data.errors?.length) {
+                    html += `<br><br><strong>Warnings (${data.errors.length}):</strong><br>` + data.errors.map(e => `&#8226; ${escapeHtml(e)}`).join('<br>');
+                }
+                uploadResult.className = 'alert alert-success show';
+                uploadResult.innerHTML = html;
+
+                loadAssignments();
+                loadStats();
+
+                // Store assignment IDs and prompt for SMS
+                pendingAssignmentIds = data.assignment_ids || [];
+                if (pendingAssignmentIds.length > 0) {
+                    // Close upload modal, open SMS confirmation
+                    setTimeout(() => {
+                        closeUploadModal();
+                        openSmsModal(pendingAssignmentIds.length);
+                    }, 800);
+                }
+            } else {
+                uploadResult.className = 'alert alert-error show';
+                uploadResult.innerHTML = `<strong>Error:</strong> ${escapeHtml(data.error || 'Upload failed')}`;
+            }
+        } catch (e) {
+            uploadResult.className = 'alert alert-error show';
+            uploadResult.innerHTML = '<strong>Error:</strong> Network error';
+        }
+        uploadBtn.disabled = false;
+        uploadBtn.textContent = 'Upload & Process';
+    }
+
+    // ===== SMS Confirmation Modal =====
+    const smsConfirmModal = document.getElementById('smsConfirmModal');
+    const smsResult = document.getElementById('smsResult');
+
+    function openSmsModal(count) {
+        document.getElementById('smsCount').textContent = count;
+        smsResult.classList.remove('show');
+        document.getElementById('sendSmsBtn').disabled = false;
+        document.getElementById('sendSmsBtn').innerHTML = `
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+            Send SMS`;
+        smsConfirmModal.classList.add('show');
+    }
+
+    function closeSmsModal() {
+        smsConfirmModal.classList.remove('show');
+    }
+
+    async function sendSmsForAssignments() {
+        if (!pendingAssignmentIds.length) return;
+
+        const btn = document.getElementById('sendSmsBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span> Sending...';
+        smsResult.classList.remove('show');
+
+        try {
+            const resp = await fetch(`${API_BASE}/roster/send-sms/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken(),
+                },
+                body: JSON.stringify({ assignment_ids: pendingAssignmentIds }),
+            });
+            const data = await resp.json();
+
+            if (resp.ok) {
+                smsResult.className = 'alert alert-success show';
+                smsResult.innerHTML = `<strong>SMS Queued:</strong> ${data.sms_queued} messages sent to delivery queue.`;
+                pendingAssignmentIds = [];
+                loadAssignments();
+                loadStats();
+                setTimeout(() => closeSmsModal(), 2000);
+            } else {
+                smsResult.className = 'alert alert-error show';
+                smsResult.innerHTML = `<strong>Error:</strong> ${escapeHtml(data.error || 'Failed to queue SMS')}`;
+                btn.disabled = false;
+                btn.innerHTML = `
+                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+                    Retry`;
+            }
+        } catch (e) {
+            smsResult.className = 'alert alert-error show';
+            smsResult.innerHTML = '<strong>Error:</strong> Network error';
+            btn.disabled = false;
+            btn.textContent = 'Retry';
+        }
+    }
+
+    // ===== Assignments Table =====
+    let allLoadedAssignments = [];
+    let pollTimer = null;
+
+    function updateLastImportDate(items) {
+        const el = document.getElementById('lastImportDate');
+        if (!items.length) {
+            el.textContent = 'No imports yet';
+            return;
+        }
+        const latest = items.reduce((a, b) =>
+            new Date(a.created_at) > new Date(b.created_at) ? a : b
+        );
+        const d = new Date(latest.created_at);
+        el.textContent = d.toLocaleDateString('en-US', {
+            year: 'numeric', month: 'short', day: 'numeric',
+            hour: '2-digit', minute: '2-digit',
+        });
+    }
+
+    async function loadAssignments(silent) {
+        const tbody = document.getElementById('assignmentsBody');
+        if (!silent) {
+            tbody.innerHTML = '<tr class="empty-row"><td colspan="9"><span class="spinner"></span> Loading...</td></tr>';
+        }
+
+        try {
+            let url = `${API_BASE}/assignments/?page_size=200`;
+            const dateFilter = document.getElementById('filterDate').value;
+            if (dateFilter) url += `&route_date=${dateFilter}`;
+
+            const resp = await fetch(url);
+            const data = await resp.json();
+            const items = data.results || data;
+            allLoadedAssignments = items;
+
+            // Update last import date
+            updateLastImportDate(items);
+
+            // Show/hide the "Send Pending SMS" button
+            const pendingItems = items.filter(a => a.sms_status === 'pending' || a.sms_status === 'failed');
+            const sendPendingBtn = document.getElementById('sendPendingBtn');
+            sendPendingBtn.style.display = pendingItems.length > 0 ? 'inline-flex' : 'none';
+
+            if (!items.length) {
+                tbody.innerHTML = '<tr class="empty-row"><td colspan="9">No assignments found. Upload a roster to get started.</td></tr>';
+                stopPolling();
+                return;
+            }
+            tbody.innerHTML = items.map(a => {
+                let actionBtn = '';
+                if (a.sms_status === 'pending' || a.sms_status === 'failed') {
+                    actionBtn = `<button class="btn btn-primary btn-sm" onclick="sendSingleSms(${a.id}, this, false)">${a.sms_status === 'failed' ? 'Retry' : 'Send'}</button>`;
+                } else if (a.sms_status === 'queued' || a.sms_status === 'sent' || a.sms_status === 'delivered') {
+                    actionBtn = `<button class="btn btn-outline btn-sm" onclick="sendSingleSms(${a.id}, this, true)">Resend</button>`;
+                }
+                return `<tr>
+                    <td><strong>${escapeHtml(a.driver_name || '—')}</strong></td>
+                    <td>${escapeHtml(a.vehicle_code_display || '—')} <span style="color:var(--hera-gray-400)">${escapeHtml(a.plate_number || '')}</span></td>
+                    <td><strong>${escapeHtml(a.route_code)}</strong></td>
+                    <td>${escapeHtml(a.staging)}</td>
+                    <td>${escapeHtml(a.pad)}</td>
+                    <td>${a.wave_time || '—'}</td>
+                    <td>${formatDate(a.route_date)}</td>
+                    <td>${badgeHtml(a.sms_status)}</td>
+                    <td>${actionBtn}</td>
+                </tr>`;
+            }).join('');
+
+            // Auto-poll if any assignments are queued (waiting for status update)
+            const hasQueued = items.some(a => a.sms_status === 'queued');
+            if (hasQueued) {
+                startPolling();
+            } else {
+                stopPolling();
+            }
+        } catch (e) {
+            if (!silent) {
+                tbody.innerHTML = '<tr class="empty-row"><td colspan="9" style="color:var(--hera-red)">Failed to load assignments</td></tr>';
+            }
+        }
+    }
+
+    // Poll every 5 seconds while there are queued messages
+    function startPolling() {
+        if (pollTimer) return;
+        pollTimer = setInterval(() => {
+            loadAssignments(true);
+            loadStats();
+        }, 5000);
+    }
+
+    function stopPolling() {
+        if (pollTimer) {
+            clearInterval(pollTimer);
+            pollTimer = null;
+        }
+    }
+
+    // Send or resend SMS for a single assignment
+    async function sendSingleSms(assignmentId, btn, isResend) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span>';
+        try {
+            const body = { assignment_ids: [assignmentId] };
+            if (isResend) body.resend = true;
+
+            const resp = await fetch(`${API_BASE}/roster/send-sms/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken(),
+                },
+                body: JSON.stringify(body),
+            });
+            if (resp.ok) {
+                loadAssignments();
+                loadStats();
+            } else {
+                const data = await resp.json();
+                alert('Error: ' + (data.error || 'Failed to queue SMS'));
+                btn.disabled = false;
+                btn.textContent = isResend ? 'Resend' : 'Retry';
+            }
+        } catch (e) {
+            alert('Network error');
+            btn.disabled = false;
+            btn.textContent = isResend ? 'Resend' : 'Retry';
+        }
+    }
+
+    // Send SMS for all pending/failed assignments
+    function sendAllPending() {
+        const ids = allLoadedAssignments
+            .filter(a => a.sms_status === 'pending' || a.sms_status === 'failed')
+            .map(a => a.id);
+        if (!ids.length) return;
+        pendingAssignmentIds = ids;
+        openSmsModal(ids.length);
+    }
+
+    // ===== Stats =====
+    async function loadStats() {
+        try {
+            const resp = await fetch(`${API_BASE}/assignments/?page_size=1000`);
+            const data = await resp.json();
+            const items = data.results || data;
+            document.getElementById('stat-total').textContent = items.length;
+            document.getElementById('stat-delivered').textContent = items.filter(a => a.sms_status === 'delivered' || a.sms_status === 'sent').length;
+            document.getElementById('stat-pending').textContent = items.filter(a => ['pending','queued'].includes(a.sms_status)).length;
+            document.getElementById('stat-failed').textContent = items.filter(a => a.sms_status === 'failed').length;
+        } catch(e) {}
+    }
+
+    loadAssignments();
+    loadStats();
+</script>
+{% endblock %}

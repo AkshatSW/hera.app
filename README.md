@@ -553,15 +553,60 @@ This endpoint accepts POST requests with `MessageSid` and `MessageStatus` fields
 
 ## Deployment
 
-Recommended production setup:
+### Vercel Deployment
 
-| Component | Service |
-|-----------|---------|
-| Backend | AWS EC2 / DigitalOcean (Gunicorn + Nginx) |
-| Database | MySQL |
-| Queue Broker | Redis |
-| Workers | Celery |
-| SMS | Twilio |
-| Email | SendGrid |
+You can deploy Hera to [Vercel](https://vercel.com/) for serverless hosting. The project is pre-configured for Vercel:
 
-For production, set `DEBUG=False`, generate a strong `DJANGO_SECRET_KEY`, configure `ALLOWED_HOSTS`, and use `DB_ENGINE=mysql`.
+- `vercel.json` uses Django WSGI entrypoint (`config/wsgi.py`).
+- Static files are handled via `STATIC_ROOT` and routed in `vercel.json`.
+- All environment variables must be set in Vercel's dashboard.
+
+#### Steps
+
+1. **Fork or clone the repository**
+2. **Create a `.env` file** (use `.env.example` as a template)
+3. **Set production values:**
+                - `DEBUG=False`
+                - `DJANGO_SECRET_KEY` (use a strong, random value)
+                - `ALLOWED_HOSTS=your-vercel-domain.vercel.app`
+                - Use a managed MySQL database (do not use SQLite for production)
+                - Set `REDIS_URL` to a production Redis instance
+                - Set Twilio and SendGrid credentials
+                - Set Celery worker to run externally (if using background tasks)
+4. **Run static file collection locally:**
+                ```bash
+                python manage.py collectstatic
+                ```
+                This will create a `staticfiles/` directory for Vercel to serve.
+5. **Push your code to GitHub**
+6. **Connect your repo to Vercel**
+7. **Configure environment variables in Vercel dashboard**
+8. **Deploy**
+
+#### Static Files
+
+Static files are served from `/staticfiles/` via a custom route in `vercel.json`:
+
+```json
+{
+        "routes": [
+                { "src": "/static/(.*)", "dest": "/staticfiles/$1" },
+                { "src": "/(.*)", "dest": "config/wsgi.py" }
+        ]
+}
+```
+
+#### Production Checklist
+
+- [ ] `DEBUG=False`
+- [ ] Strong `DJANGO_SECRET_KEY`
+- [ ] `ALLOWED_HOSTS` includes your Vercel domain
+- [ ] Managed MySQL database (update `.env` and `settings.py`)
+- [ ] Production Redis URL
+- [ ] All credentials/secrets set in Vercel dashboard
+- [ ] Static files collected (`python manage.py collectstatic`)
+- [ ] Celery worker running externally (if used)
+
+---
+
+For traditional server hosting (AWS EC2, DigitalOcean, etc.), use Gunicorn + Nginx, and follow the same environment setup.

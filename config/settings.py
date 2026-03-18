@@ -122,6 +122,7 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
@@ -153,8 +154,8 @@ LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/login/'
 
 # Google reCAPTCHA v2
-RECAPTCHA_SITE_KEY = os.getenv('RECAPTCHA_SITE_KEY', '')
-RECAPTCHA_SECRET_KEY = os.getenv('RECAPTCHA_SECRET_KEY', '')
+RECAPTCHA_SITE_KEY = ''
+RECAPTCHA_SECRET_KEY = ''
 
 # REST Framework
 REST_FRAMEWORK = {

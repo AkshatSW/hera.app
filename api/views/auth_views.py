@@ -6,7 +6,6 @@ from django.contrib.auth import login, logout, get_user_model
 from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
-from django_ratelimit.decorators import ratelimit
 from api.models import EmailOTP
 from api.services.email_service import send_otp_sms
 
@@ -22,8 +21,6 @@ def normalize_phone(phone):
     return '+' + cleaned
 
 
-@ratelimit(key='ip', rate='5/m', method='POST', block=True)
-@ratelimit(key='ip', rate='20/h', method='POST', block=True)
 def signup_view(request):
     if request.user.is_authenticated:
         return redirect('dashboard')
@@ -98,7 +95,6 @@ def signup_view(request):
     })
 
 
-@ratelimit(key='ip', rate='10/m', method='POST', block=True)
 def verify_email_view(request):
     user_id = request.session.get('pending_verification_user_id')
     if not user_id:
@@ -142,7 +138,6 @@ def verify_email_view(request):
     })
 
 
-@ratelimit(key='ip', rate='3/m', method=['GET', 'POST'], block=True)
 def resend_otp_view(request):
     user_id = request.session.get('pending_verification_user_id')
     if not user_id:
@@ -162,8 +157,6 @@ def resend_otp_view(request):
     return redirect('verify-email')
 
 
-@ratelimit(key='ip', rate='5/m', method='POST', block=True)
-@ratelimit(key='ip', rate='20/h', method='POST', block=True)
 def login_view(request):
     if request.user.is_authenticated:
         return redirect('dashboard')
@@ -202,8 +195,6 @@ def logout_view(request):
     return redirect('login')
 
 
-@ratelimit(key='ip', rate='3/m', method='POST', block=True)
-@ratelimit(key='ip', rate='10/h', method='POST', block=True)
 def forgot_password_view(request):
     error = None
     success = None
@@ -238,7 +229,6 @@ def forgot_password_view(request):
     })
 
 
-@ratelimit(key='ip', rate='10/m', method='POST', block=True)
 def reset_password_view(request):
     user_id = request.session.get('password_reset_user_id')
     if not user_id:

@@ -14,12 +14,20 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-dev-key-change-in-p
 # Default to False for safety - must explicitly set DEBUG=True in .env for development
 DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,hera-app-seven.vercel.app,hera-app-git-main-akshatsws-projects.vercel.app,hera-pnw7lu9hc-akshatsws-projects.vercel.app,hera-app-akshatsws-projects.vercel.app,.vercel.app').split(',')
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+
+# Add Vercel domains - all subdomains of vercel.app
+ALLOWED_HOSTS.extend([
+    '.vercel.app',  # Allows all subdomains of vercel.app
+    'hera-app-seven.vercel.app',
+    'hera-app-git-main-akshatsws-projects.vercel.app',
+    'hera-pnw7lu9hc-akshatsws-projects.vercel.app',
+    'hera-app-akshatsws-projects.vercel.app',
+])
 
 # Add testserver for Django test client
 if DEBUG:
     ALLOWED_HOSTS.append('testserver')
-    ALLOWED_HOSTS.append('.vercel.app')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -103,6 +111,12 @@ else:
             'LOCATION': 'unique-snowflake',
         }
     }
+
+# Session configuration - Use database sessions to avoid Redis dependency
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+SESSION_COOKIE_AGE = 86400  # 24 hours
+SESSION_SAVE_EVERY_REQUEST = True
+SESSION_COOKIE_NAME = 'hera_sessionid'
 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
@@ -197,10 +211,6 @@ if not DEBUG:
     SECURE_CONTENT_TYPE_NOSNIFF = True
     SECURE_BROWSER_XSS_FILTER = True
     X_FRAME_OPTIONS = 'DENY'
-
-    # Session settings
-    SESSION_COOKIE_AGE = 86400  # 24 hours
-    SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 
 # Logging configuration
 LOGGING = {

@@ -14,7 +14,7 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-dev-key-change-in-p
 # Default to False for safety - must explicitly set DEBUG=True in .env for development
 DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,hera-app-seven.vercel.app,hera-app-git-main-akshatsws-projects.vercel.app,hera-pnw7lu9hc-akshatsws-projects.vercel.app,hera-app-akshatsws-projects.vercel.app,.vercel.app').split(',')
 
 # Add testserver for Django test client
 if DEBUG:

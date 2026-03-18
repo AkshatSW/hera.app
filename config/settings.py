@@ -172,16 +172,19 @@ CORS_ALLOW_ALL_ORIGINS = DEBUG
 CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:8000').split(',') if not DEBUG else []
 
 # Celery
-CELERY_BROKER_URL = None
-CELERY_RESULT_BACKEND = None
+if DEBUG:
+    CELERY_BROKER_URL = 'memory://'
+    CELERY_RESULT_BACKEND = 'cache+memory://'
+    CELERY_TASK_ALWAYS_EAGER = True
+    CELERY_TASK_EAGER_PROPAGATES = True
+else:
+    CELERY_BROKER_URL = os.getenv('REDIS_URL', None)
+    CELERY_RESULT_BACKEND = os.getenv('REDIS_URL', None)
+    CELERY_TASK_ALWAYS_EAGER = os.getenv('CELERY_ALWAYS_EAGER', 'False').lower() == 'true'
+    CELERY_TASK_EAGER_PROPAGATES = True
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
-
-# Default to False in production - tasks should run asynchronously
-# Set CELERY_ALWAYS_EAGER=True in development if you don't want to run a worker
-CELERY_TASK_ALWAYS_EAGER = os.getenv('CELERY_ALWAYS_EAGER', 'False').lower() == 'true'
-CELERY_TASK_EAGER_PROPAGATES = True
 
 # Twilio
 TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID', '')

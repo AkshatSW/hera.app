@@ -152,13 +152,102 @@ Hera uses a custom user model (`HeraUser`) with email-based authentication — t
 
 ## Setup
 
-### Prerequisites
+You can run Hera in two ways:
+1. **Docker** (Recommended — runs exactly the same on any system)
+2. **Manual Installation** (Traditional Python virtual environment)
+
+### Option 1: Docker Setup (Recommended)
+
+Docker ensures the application runs exactly the same on your local system as it does on your clients' systems, eliminating "it works on my machine" issues.
+
+#### Prerequisites
+
+- [Docker](https://docs.docker.com/get-docker/) (recommended: Docker Desktop)
+- [Docker Compose](https://docs.docker.com/compose/install/) (included with Docker Desktop)
+
+#### Quick Start
+
+```bash
+# Clone the repository
+cd hera.app
+
+# Copy environment template
+cp .env.example .env
+# Edit .env with your credentials (see Configuration section)
+
+# Start all services (database, Redis, web app)
+docker-compose up -d
+
+# View logs (optional)
+docker-compose logs -f web
+
+# Access the application
+# Visit: http://localhost:8000
+# Admin: http://localhost:8000/admin (admin/admin123)
+```
+
+The application will be available at `http://localhost:8000` with:
+- **Automatic database setup** (PostgreSQL with sample data)
+- **Redis** for caching and background tasks
+- **Auto-created superuser**: `admin` / `admin123`
+- **Hot-reload** for development (code changes refresh automatically)
+
+#### Docker Commands
+
+```bash
+# Start services in development mode
+docker-compose up -d
+
+# View logs
+docker-compose logs -f web
+docker-compose logs -f celery-worker
+
+# Stop services
+docker-compose down
+
+# Rebuild after code changes
+docker-compose build web
+docker-compose up -d
+
+# Reset everything (remove volumes)
+docker-compose down -v
+docker-compose up -d
+
+# Run Django commands
+docker-compose exec web python manage.py makemigrations
+docker-compose exec web python manage.py migrate
+docker-compose exec web python manage.py createsuperuser
+
+# Access shell inside container
+docker-compose exec web bash
+docker-compose exec web python manage.py shell
+
+# Start with Celery workers (for background SMS tasks)
+docker-compose --profile celery up -d
+```
+
+#### Production Deployment with Docker
+
+For production environments:
+
+```bash
+# Use production configuration
+docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+# Or build production image
+docker build -t hera-app .
+docker run -d -p 8000:8000 --env-file .env hera-app gunicorn
+```
+
+### Option 2: Manual Installation
+
+#### Prerequisites
 
 - Python 3.10+
 - Redis (for Celery task queue)
 - MySQL (optional — SQLite is used by default for development)
 
-### Installation
+#### Installation
 
 ```bash
 # Clone the repository
@@ -186,7 +275,7 @@ python manage.py createsuperuser_if_none --email admin@example.com --password yo
 python manage.py runserver
 ```
 
-### Starting Celery Worker
+#### Starting Celery Worker (Manual)
 
 Redis must be running for Celery to function.
 
@@ -198,6 +287,88 @@ redis-server
 source venv/bin/activate
 celery -A config worker -l info
 ```
+
+### Environment Files
+
+Both Docker and manual setups use the same `.env` file for configuration:
+
+```bash
+# Development (default in docker-compose.yml)
+DEBUG=True
+DJANGO_SECRET_KEY=dev-secret-key-change-in-production
+ALLOWED_HOSTS=localhost,127.0.0.1
+
+# Production (use strong values)
+DEBUG=False
+DJANGO_SECRET_KEY=your-production-secret-key-minimum-50-characters-long
+ALLOWED_HOSTS=your-domain.com
+```
+
+### Docker Troubleshooting
+
+#### Common Issues
+
+**Port already in use:**
+```bash
+# Check what's using port 8000
+lsof -i :8000
+# Kill the process or use different port
+docker-compose -f docker-compose.yml up -d --scale web=1 -p 8001:8000
+```
+
+**Database connection errors:**
+```bash
+# Reset database volumes
+docker-compose down -v
+docker-compose up -d
+
+# Check database status
+docker-compose logs db
+```
+
+**Permission errors (Linux/Mac):**
+```bash
+# Fix file permissions
+sudo chown -R $USER:$USER .
+chmod +x docker-entrypoint.sh
+```
+
+**Container won't start:**
+```bash
+# View detailed logs
+docker-compose logs web
+docker-compose logs db
+
+# Rebuild containers
+docker-compose build --no-cache
+docker-compose up -d
+```
+
+**Static files not loading:**
+```bash
+# Collect static files manually
+docker-compose exec web python manage.py collectstatic --noinput
+```
+
+#### Docker Desktop Settings
+
+For optimal performance:
+- **Memory**: Allocate at least 4GB RAM to Docker
+- **CPU**: Allocate at least 2 CPU cores
+- **Disk**: Ensure sufficient free space (at least 10GB)
+
+#### Environment Variables
+
+All services use environment variables for configuration. Key variables:
+
+| Service | Variable | Purpose |
+|---------|----------|---------|
+| Web | `DEBUG` | Enable/disable debug mode |
+| Web | `DATABASE_URL` | PostgreSQL connection string |
+| Web | `REDIS_URL` | Redis connection string |
+| Database | `POSTGRES_DB` | Database name |
+| Database | `POSTGRES_USER` | Database user |
+| Database | `POSTGRES_PASSWORD` | Database password |
 
 ## Configuration
 

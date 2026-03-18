@@ -14,20 +14,30 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-dev-key-change-in-p
 # Default to False for safety - must explicitly set DEBUG=True in .env for development
 DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+# ALLOWED_HOSTS configuration for Vercel deployment
+ALLOWED_HOSTS_ENV = os.getenv('ALLOWED_HOSTS', '')
+if ALLOWED_HOSTS_ENV:
+    ALLOWED_HOSTS = ALLOWED_HOSTS_ENV.split(',')
+else:
+    ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 
-# Add Vercel domains - all subdomains of vercel.app
+# Always add Vercel domains (all possible subdomains)
 ALLOWED_HOSTS.extend([
-    '.vercel.app',  # Allows all subdomains of vercel.app
+    '.vercel.app',  # Wildcard for all vercel.app subdomains
+    '*.vercel.app',  # Alternative wildcard syntax
     'hera-app-seven.vercel.app',
     'hera-app-git-main-akshatsws-projects.vercel.app',
     'hera-pnw7lu9hc-akshatsws-projects.vercel.app',
     'hera-app-akshatsws-projects.vercel.app',
+    'hera-foledpae1-akshatsws-projects.vercel.app',  # Add the current failing subdomain
 ])
 
 # Add testserver for Django test client
 if DEBUG:
     ALLOWED_HOSTS.append('testserver')
+
+# Remove duplicates and empty strings
+ALLOWED_HOSTS = list(filter(None, set(ALLOWED_HOSTS)))
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -148,6 +158,9 @@ if not DEBUG:
     STATIC_ROOT = BASE_DIR / 'staticfiles'
     # Use whitenoise for serving static files in production
     MIDDLEWARE.insert(1, 'whitenoise.middleware.WhiteNoiseMiddleware')
+    # WhiteNoise configuration for better Vercel performance
+    WHITENOISE_AUTOREFRESH = True
+    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 else:
     # Development - no STATIC_ROOT needed
     pass

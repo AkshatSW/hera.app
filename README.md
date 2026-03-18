@@ -14,91 +14,71 @@ Administrators sign up with their DSP (Delivery Service Partner) name, verify th
 | SMS Provider | Twilio (Messaging Service) |
 | Email Provider | SendGrid (OTP delivery) |
 | Frontend | Django Templates (vanilla HTML/CSS/JS) |
-| Excel Parsing | pandas, openpyxl |
-| Bot Protection | Google reCAPTCHA v2 |
-
-## Architecture
-
-```
-Frontend Dashboard
-        ↓
-Django REST API
-        ↓
-MySQL / SQLite Database
-        ↓
-Celery Worker + Redis Queue
-        ↓
-Twilio SMS Provider
-        ↓
-SendGrid Email (OTP verification & password reset)
-```
-
-## Project Structure
-
-```
-hera.app/
-├── config/
-│   ├── __init__.py              # Celery app bootstrap
-│   ├── celery.py                # Celery configuration
-│   ├── settings.py              # Django settings
-│   ├── urls.py                  # Root URL routing (auth + dashboard pages)
-│   ├── wsgi.py
-│   └── asgi.py
-├── api/
-│   ├── models/
-│   │   ├── __init__.py          # Re-exports all models
-│   │   ├── user.py              # HeraUser custom user model + manager
-│   │   ├── otp.py               # EmailOTP model (verification & password reset)
-│   │   └── models.py            # Driver, Vehicle, Assignment, SMSLog
-│   ├── views/
-│   │   ├── __init__.py          # Re-exports all views
-│   │   ├── auth_views.py        # Signup, login, logout, verify email, forgot/reset password
-│   │   ├── dashboard_views.py   # Page views (home, associates, vehicles, sms)
-│   │   ├── driver_views.py      # Driver CRUD API
-│   │   ├── vehicle_views.py     # Vehicle CRUD API
-│   │   ├── assignment_views.py  # Assignment CRUD API
-│   │   ├── roster_views.py      # Excel upload endpoint
-│   │   └── sms_views.py         # SMS history, send, webhook
-│   ├── serializers/
-│   │   └── serializers.py       # DRF serializers
-│   ├── services/
-│   │   ├── email_service.py     # SendGrid OTP email delivery
-│   │   ├── sms_service.py       # Twilio SMS integration
-│   │   └── roster_service.py    # Excel parsing and assignment creation
-│   ├── tasks/
-│   │   └── sms_tasks.py         # Celery background tasks
-│   ├── management/commands/
-│   │   └── createsuperuser_if_none.py  # Create superuser if none exists
-│   ├── admin.py                 # Django admin (HeraUser, Driver, Vehicle, Assignment, SMSLog)
-│   └── urls.py                  # API URL routing
-├── templates/dashboard/
-│   ├── base.html                # Base layout with sidebar, DSP name, and logout
-│   ├── login.html               # Login page with links to signup and forgot password
-│   ├── signup.html              # Sign-up form with reCAPTCHA
-│   ├── verify_email.html        # OTP verification page
-│   ├── forgot_password.html     # Email input for password reset
-│   ├── reset_password.html      # OTP + new password form
-│   ├── home.html                # Roster upload and assignments
-│   ├── associates.html          # Associate (driver) management
-│   ├── vehicles.html            # Vehicle management
-│   └── sms_center.html          # SMS conversation interface
-├── static/
-│   ├── css/hera.css             # Application stylesheet
-│   ├── img/heralogo.png         # Hera logo
-│   ├── roster_format.xlsx       # Blank Excel format template (headers only)
-│   └── roster_template.xlsx     # Downloadable Excel template with sample data
-├── .env                         # Environment variables (not committed)
-├── .env.example                 # Environment variable template
-├── requirements.txt
-└── manage.py
-```
-
-## Authentication Flow
-
-Hera uses a custom user model (`HeraUser`) with email-based authentication — there is no username field.
-
 ### Sign Up
 
+### Manual Installation (Local Development)
+
+#### Prerequisites
+
+- Python 3.10+
+- Redis (for Celery task queue, optional for basic SMS)
+- MySQL (optional — SQLite is used by default for development)
+
+#### Installation
+
+```bash
+# Clone the repository
+cd hera.app
+
+# Create and activate virtual environment
+python3 -m venv venv
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Copy environment template and configure
+cp .env.example .env
+# Edit .env with your credentials (see Configuration section)
+
+# Run migrations
+python manage.py makemigrations
+python manage.py migrate
+
+# Create admin superuser
+python manage.py createsuperuser_if_none --email admin@example.com --password yourpassword
+
+# Start the development server
+python manage.py runserver
+```
+
+#### Starting Celery Worker (Manual)
+
+Redis must be running for Celery to function.
+
+```bash
+# Start Redis (if not already running)
+redis-server
+
+# Start Celery worker (in a separate terminal)
+source venv/bin/activate
+celery -A config worker -l info
+```
+
+### Environment Files
+
+All setup uses the `.env` file for configuration:
+
+```bash
+# Development (default)
+DEBUG=True
+DJANGO_SECRET_KEY=dev-secret-key-change-in-production
+ALLOWED_HOSTS=localhost,127.0.0.1
+# Production (use strong values)
+DEBUG=False
+DJANGO_SECRET_KEY=your-production-secret-key-minimum-50-characters-long
+ALLOWED_HOSTS=your-domain.com
+```
 1. User fills in DSP name, first name, last name, phone, email, password, and reCAPTCHA
 2. Account is created as **inactive** (`is_active=False`, `is_verified=False`)
 3. A 6-digit OTP is generated and sent to the user's email via SendGrid

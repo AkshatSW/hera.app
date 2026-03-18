@@ -71,8 +71,17 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
-# Database - MySQL with SQLite fallback for development
-if os.getenv('DB_ENGINE') == 'mysql':
+# Database - PostgreSQL for production, SQLite for development
+DATABASE_URL = os.getenv('DATABASE_URL')
+
+if DATABASE_URL:
+    # Production database (PostgreSQL)
+    import dj_database_url
+    DATABASES = {
+        'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600, conn_health_checks=True)
+    }
+elif os.getenv('DB_ENGINE') == 'mysql':
+    # MySQL configuration
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.mysql',
@@ -89,6 +98,7 @@ if os.getenv('DB_ENGINE') == 'mysql':
         }
     }
 else:
+    # Development database (SQLite)
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
@@ -130,8 +140,17 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
+
+# For production deployment (Vercel)
+if not DEBUG:
+    STATIC_ROOT = BASE_DIR / 'staticfiles'
+    # Use whitenoise for serving static files in production
+    MIDDLEWARE.insert(1, 'whitenoise.middleware.WhiteNoiseMiddleware')
+else:
+    # Development - no STATIC_ROOT needed
+    pass
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
@@ -238,6 +257,11 @@ LOGGING = {
             'level': os.getenv('DJANGO_LOG_LEVEL', 'INFO'),
             'propagate': False,
         },
+        'django.db.backends': {
+            'handlers': ['console'],
+            'level': 'ERROR',  # Only log database errors to avoid noise
+            'propagate': False,
+        },
         'api': {
             'handlers': ['console'],
             'level': 'INFO',
@@ -245,3 +269,12 @@ LOGGING = {
         },
     },
 }
+
+# Enhanced error reporting for production debugging
+if not DEBUG:
+    # Log all 500 errors
+    LOGGING['loggers']['django.request'] = {
+        'handlers': ['console'],
+        'level': 'ERROR',
+        'propagate': False,
+    }

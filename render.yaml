@@ -1,0 +1,33 @@
+# Render deployment configuration
+# Save as render.yaml in your project root
+
+services:
+  - type: web
+    name: hera-app
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn config.wsgi:application --config gunicorn.conf.py
+    autoDeploy: true
+    envVars:
+      - key: DJANGO_SECRET_KEY
+        value: ${DJANGO_SECRET_KEY}
+      - key: DEBUG
+        value: ${DEBUG}
+      - key: ALLOWED_HOSTS
+        value: ${ALLOWED_HOSTS}
+      - key: REDIS_URL
+        value: ${REDIS_URL}
+      - key: REDIS_URL_PROD
+        value: ${REDIS_URL_PROD}
+      - key: CELERY_ALWAYS_EAGER
+        value: ${CELERY_ALWAYS_EAGER}
+      - key: TWILIO_ACCOUNT_SID
+        value: ${TWILIO_ACCOUNT_SID}
+      - key: TWILIO_AUTH_TOKEN
+        value: ${TWILIO_AUTH_TOKEN}
+      - key: TWILIO_MESSAGING_SERVICE_SID
+        value: ${TWILIO_MESSAGING_SERVICE_SID}
+      - key: RECAPTCHA_SITE_KEY
+        value: ${RECAPTCHA_SITE_KEY}
+      - key: RECAPTCHA_SECRET_KEY
+        value: ${RECAPTCHA_SECRET_KEY}

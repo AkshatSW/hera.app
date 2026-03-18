@@ -91,9 +91,9 @@ else:
 
 # Cache configuration - Redis
 if DEBUG:
-    REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+    REDIS_URL = os.getenv('REDIS_URL')
 else:
-    REDIS_URL = os.getenv('REDIS_URL_PROD', 'rediss://default:gQAAAAAAASf0AAIncDE2OWZhNzZlMGIxZWY0NGM5YjQ1NWMyM2M2MTFhMWRlYXAxNzU3NjQ@polite-goblin-75764.upstash.io:6379')
+    REDIS_URL = os.getenv('REDIS_URL_PROD')
 CACHES = {
     'default': {
         'BACKEND': 'django_redis.cache.RedisCache',

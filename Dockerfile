@@ -25,7 +25,7 @@ COPY docker-entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
 # Collect static at build time
-RUN DJANGO_SECRET_KEY=build-secret python manage.py collectstatic --noinput
+RUN DJANGO_SECRET_KEY=build-secret ALLOWED_HOSTS=localhost python manage.py collectstatic --noinput
 
 # Expose port
 EXPOSE 8000

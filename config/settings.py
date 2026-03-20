@@ -16,7 +16,7 @@ if not SECRET_KEY:
 
 DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',')
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost').split(',')
 if not ALLOWED_HOSTS or ALLOWED_HOSTS == ['']:
     raise Exception("ALLOWED_HOSTS must be set")
 

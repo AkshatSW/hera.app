@@ -11,6 +11,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY
 # ======================
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 if not SECRET_KEY:
     raise Exception("DJANGO_SECRET_KEY is required")
 
@@ -163,7 +164,10 @@ REST_FRAMEWORK = {
 # CORS
 # ======================
 CORS_ALLOW_ALL_ORIGINS = DEBUG
-CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', '').split(',') if not DEBUG else []
+CORS_ALLOWED_ORIGINS = [
+    origin.strip() for origin in os.getenv('CORS_ALLOWED_ORIGINS', '').split(',')
+    if origin.strip()
+] if not DEBUG else []
 
 # ======================
 # SECURITY (PRODUCTION)

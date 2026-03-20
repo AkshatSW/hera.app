@@ -106,6 +106,7 @@ else:
 # ======================
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_DIRS = [BASE_DIR / 'static']
 
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
@@ -134,6 +135,15 @@ CACHES = {
 }
 
 # ======================
+# CELERY
+# ======================
+CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
+# Run tasks synchronously in DEBUG mode (no Redis required)
+CELERY_TASK_ALWAYS_EAGER = DEBUG
+CELERY_TASK_EAGER_PROPAGATES = DEBUG
+
+# ======================
 # SESSION
 # ======================
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
@@ -143,6 +153,21 @@ SESSION_COOKIE_AGE = 86400
 # AUTH
 # ======================
 AUTH_USER_MODEL = 'api.HeraUser'
+LOGIN_URL = '/login/'
+LOGIN_REDIRECT_URL = '/'
+
+# ======================
+# RECAPTCHA (optional)
+# ======================
+RECAPTCHA_SITE_KEY = os.getenv('RECAPTCHA_SITE_KEY', '')
+RECAPTCHA_SECRET_KEY = os.getenv('RECAPTCHA_SECRET_KEY', '')
+
+# ======================
+# TWILIO (SMS)
+# ======================
+TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID', '')
+TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN', '')
+TWILIO_MESSAGING_SERVICE_SID = os.getenv('TWILIO_MESSAGING_SERVICE_SID', '')
 
 # ======================
 # REST FRAMEWORK

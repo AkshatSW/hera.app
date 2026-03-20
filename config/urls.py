@@ -28,5 +28,5 @@ urlpatterns = [
     path('sms/', sms_center_view, name='sms-center'),
 ]
 
-if settings.DEBUG:
+if settings.DEBUG and settings.STATICFILES_DIRS:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATICFILES_DIRS[0])

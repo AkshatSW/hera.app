@@ -1,0 +1,34 @@
+services:
+  web:
+    type: web
+    runtime: docker
+    dockerfilePath: Dockerfile
+    envVars:
+      - key: DJANGO_SECRET_KEY
+        value: "your-secret-key"
+      - key: DATABASE_URL
+        value: "${RENDER_POSTGRESQL_URL}"
+      - key: AWS_ACCESS_KEY_ID
+        value: "your-access-key-id"
+      - key: AWS_SECRET_ACCESS_KEY
+        value: "your-secret-access-key"
+      - key: AWS_STORAGE_BUCKET_NAME
+        value: "your-bucket-name"
+      - key: AWS_S3_REGION_NAME
+        value: "your-region"
+    autoDeploy: true
+    buildFilter:
+      paths:
+        - Dockerfile
+        - requirements.txt
+        - config/
+        - api/
+        - manage.py
+    healthCheckPath: /
+
+  database:
+    type: postgres
+    name: hera-db
+    plan: standard
+    ipAllowList:
+      - 0.0.0.0/0

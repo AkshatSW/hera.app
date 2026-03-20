@@ -91,9 +91,8 @@ coverage.xml
 *.tar.gz
 *.sql
 
-# Static files (will be collected in container)
+# Static files output (will be collected in container)
 staticfiles/
-/static/
 
 # Media files (should be mounted as volume)
 media/

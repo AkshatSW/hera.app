@@ -143,8 +143,8 @@ CACHES = {
 # ======================
 CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/0')
 CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
-CELERY_TASK_ALWAYS_EAGER = False # Set to True for testing, False in production
-CELERY_TASK_EAGER_PROPAGATES = False # Don't propagate exceptions in eager mode to avoid test failures
+CELERY_TASK_ALWAYS_EAGER = DEBUG
+CELERY_TASK_EAGER_PROPAGATES = DEBUG
 
 # ======================
 # SESSION

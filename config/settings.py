@@ -10,16 +10,17 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # ======================
 # SECURITY
 # ======================
-SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-if not SECRET_KEY:
-    raise Exception("DJANGO_SECRET_KEY is required")
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'dev-secret-key')
 
 DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost').split(',')
-if not ALLOWED_HOSTS or ALLOWED_HOSTS == ['']:
-    raise Exception("ALLOWED_HOSTS must be set")
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '*').split(',')
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://*.onrender.com"
+]
+
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # ======================
 # APPLICATIONS
@@ -93,7 +94,7 @@ if DATABASE_URL:
         )
     }
 else:
-    # SQLite fallback for build/CI - not for production
+    # Fallback (local/dev only)
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
@@ -106,12 +107,12 @@ else:
 # ======================
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_DIRS = [BASE_DIR / 'static']
+STATICFILES_DIRS = [BASE_DIR / 'static'] if (BASE_DIR / 'static').exists() else []
 
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # ======================
-# MEDIA (S3)
+# MEDIA (S3 optional)
 # ======================
 AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
 AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
@@ -123,9 +124,12 @@ if AWS_STORAGE_BUCKET_NAME:
     AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com"
     AWS_DEFAULT_ACL = None
     AWS_QUERYSTRING_AUTH = False
+else:
+    MEDIA_URL = '/media/'
+    MEDIA_ROOT = BASE_DIR / 'media'
 
 # ======================
-# CACHE (simple)
+# CACHE
 # ======================
 CACHES = {
     'default': {
@@ -139,7 +143,6 @@ CACHES = {
 # ======================
 CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/0')
 CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
-# Run tasks synchronously in DEBUG mode (no Redis required)
 CELERY_TASK_ALWAYS_EAGER = DEBUG
 CELERY_TASK_EAGER_PROPAGATES = DEBUG
 
@@ -163,7 +166,7 @@ RECAPTCHA_SITE_KEY = os.getenv('RECAPTCHA_SITE_KEY', '')
 RECAPTCHA_SECRET_KEY = os.getenv('RECAPTCHA_SECRET_KEY', '')
 
 # ======================
-# TWILIO (SMS)
+# TWILIO (optional)
 # ======================
 TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID', '')
 TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN', '')

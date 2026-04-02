@@ -356,17 +356,25 @@
             const resp = await fetch(url);
             const data = await resp.json();
             const items = data.results || data;
-            allLoadedRoutes = items;
+            
+            // Deduplicate routes by ID (keep latest)
+            const routesMap = new Map();
+            if (Array.isArray(items)) {
+                items.forEach(route => {
+                    routesMap.set(route.id, route);
+                });
+            }
+            allLoadedRoutes = Array.from(routesMap.values());
 
-            updateLastImportDate(items);
-            updateRouteStats(items);
+            updateLastImportDate(allLoadedRoutes);
+            updateRouteStats(allLoadedRoutes);
 
-            if (!items.length) {
+            if (!allLoadedRoutes.length) {
                 tbody.innerHTML = '<tr class="empty-row"><td colspan="13">No routes found. Upload a route file to get started.</td></tr>';
                 return;
             }
 
-            renderRoutes(items);
+            renderRoutes(allLoadedRoutes);
         } catch (e) {
             if (!silent) {
                 tbody.innerHTML = '<tr class="empty-row"><td colspan="13" style="color:var(--hera-red)">Failed to load routes</td></tr>';
@@ -383,7 +391,21 @@
                 headers: { 'X-CSRFToken': getCsrfToken() },
             });
             if (resp.ok) {
-                loadRoutes(true);
+                const data = await resp.json();
+                // Reload routes after SMS is sent to update status
+                await loadRoutes(true);
+                btn.textContent = 'SMS Sent ✓';
+                btn.style.backgroundColor = 'var(--hera-green)';
+                btn.style.borderColor = 'var(--hera-green)';
+                btn.style.color = 'white';
+                // Reset after 2 seconds
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.textContent = isResend ? 'Resend' : 'Send SMS';
+                    btn.style.backgroundColor = '';
+                    btn.style.borderColor = '';
+                    btn.style.color = '';
+                }, 2000);
             } else {
                 const data = await resp.json();
                 alert('Error: ' + (data.error || 'Failed to queue SMS'));
@@ -439,5 +461,11 @@
     }
 
     loadRoutes();
+
+    // Auto-refresh routes every 30 seconds to keep page in sync
+    // This ensures SMS status changes from import_review page are reflected here
+    setInterval(() => {
+        loadRoutes(true);
+    }, 30000);
 </script>
 {% endblock %}

@@ -20,3 +20,9 @@ def vehicles_view(request):
 @login_required
 def sms_center_view(request):
     return render(request, 'dashboard/sms_center.html', {'active_page': 'sms'})
+
+
+@login_required
+def import_review_view(request):
+    """View for reviewing imported routes before sending SMS."""
+    return render(request, 'dashboard/import_review.html', {'active_page': 'home'})

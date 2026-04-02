@@ -3,7 +3,7 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from api.views import (
-    dashboard_view, associates_view, vehicles_view, sms_center_view,
+    dashboard_view, associates_view, vehicles_view, sms_center_view, import_review_view,
     login_view, logout_view, signup_view, verify_email_view,
     resend_otp_view, forgot_password_view, reset_password_view,
 )
@@ -26,6 +26,7 @@ urlpatterns = [
     path('associates/', associates_view, name='associates'),
     path('vehicles/', vehicles_view, name='vehicles'),
     path('sms/', sms_center_view, name='sms-center'),
+    path('import-review/', import_review_view, name='import-review'),
 ]
 
 if settings.DEBUG and settings.STATICFILES_DIRS:

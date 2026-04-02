@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser
 from rest_framework import status
 from django.conf import settings
+from django.http import HttpResponse
 from api.services.roster_service import parse_roster
 from api.models import Assignment
 from api.tasks import send_sms_task
@@ -92,3 +93,63 @@ class RosterSendSMSView(APIView):
             'sms_queued': queued,
             'total_requested': len(assignment_ids),
         })
+
+
+class RosterExportView(APIView):
+    """Export assignments to Excel format."""
+
+    def get(self, request):
+        import openpyxl
+        from openpyxl import Workbook
+
+        # Get assignments for the user
+        route_date = request.query_params.get('route_date')
+        qs = Assignment.objects.filter(user=request.user).select_related('driver', 'vehicle')
+        if route_date:
+            qs = qs.filter(route_date=route_date)
+
+        assignments = qs.order_by('route_date', 'wave_time')
+
+        # Create workbook
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Route Assignments"
+
+        # Headers matching the required format
+        headers = [
+            'Route code',
+            'DSP',
+            'Transporter Id',
+            'Driver name',
+            'Route progress',
+            'Delivery service type',
+            'Route duration',
+            'All stops',
+            'Stops completed',
+            'Not started stops',
+        ]
+        ws.append(headers)
+
+        # Data rows
+        for assignment in assignments:
+            stops_completed = assignment.all_stops - assignment.not_started_stops
+            ws.append([
+                assignment.route_code,
+                assignment.dsp_name or '',
+                assignment.transporter_id or '',
+                assignment.driver.name,
+                assignment.get_route_progress_display(),
+                assignment.get_delivery_service_type_display(),
+                assignment.route_duration or '',
+                assignment.all_stops,
+                stops_completed,
+                assignment.not_started_stops,
+            ])
+
+        # Return as Excel file download
+        response = HttpResponse(
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = 'attachment; filename="roster_export.xlsx"'
+        wb.save(response)
+        return response

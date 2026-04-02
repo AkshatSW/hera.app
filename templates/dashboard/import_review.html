@@ -1,0 +1,694 @@
+{% extends "dashboard/base.html" %}
+{% load static %}
+
+{% block title %}Import Review{% endblock %}
+{% block page_title %}Import Review{% endblock %}
+{% block page_subtitle %}Review matched routes and resolve unmatched assignments{% endblock %}
+
+{% block page_actions %}
+<button class="btn btn-outline" onclick="goBack()">
+    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+    Back
+</button>
+{% endblock %}
+
+{% block content %}
+
+<!-- Batch Summary -->
+<div class="card" style="margin-bottom:20px;">
+    <div class="card-header">
+        <div>
+            <h2>Batch Summary</h2>
+            <div style="font-size:13px;color:var(--hera-gray-500);margin-top:4px;">
+                File: <span id="fileName" style="font-weight:600;">—</span> •
+                <span id="batchTime" style="font-weight:600;">—</span>
+            </div>
+        </div>
+    </div>
+    <div style="padding:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;">
+        <div style="padding:12px;background:var(--hera-gray-50);border-radius:6px;border-left:3px solid var(--hera-blue);">
+            <div style="font-size:12px;color:var(--hera-gray-500);margin-bottom:4px;">Total Rows</div>
+            <div style="font-size:20px;font-weight:700;color:var(--hera-gray-800);" id="summaryTotal">—</div>
+        </div>
+        <div style="padding:12px;background:var(--hera-gray-50);border-radius:6px;border-left:3px solid var(--hera-green);">
+            <div style="font-size:12px;color:var(--hera-gray-500);margin-bottom:4px;">Matched</div>
+            <div style="font-size:20px;font-weight:700;color:var(--hera-green);" id="summaryMatched">—</div>
+        </div>
+        <div style="padding:12px;background:var(--hera-gray-50);border-radius:6px;border-left:3px solid var(--hera-yellow);">
+            <div style="font-size:12px;color:var(--hera-gray-500);margin-bottom:4px;">Ambiguous</div>
+            <div style="font-size:20px;font-weight:700;color:var(--hera-yellow);" id="summaryAmbiguous">—</div>
+        </div>
+        <div style="padding:12px;background:var(--hera-gray-50);border-radius:6px;border-left:3px solid var(--hera-red);">
+            <div style="font-size:12px;color:var(--hera-gray-500);margin-bottom:4px;">Unmatched</div>
+            <div style="font-size:20px;font-weight:700;color:var(--hera-red);" id="summaryUnmatched">—</div>
+        </div>
+        <div style="padding:12px;background:var(--hera-gray-50);border-radius:6px;border-left:3px solid var(--hera-accent);">
+            <div style="font-size:12px;color:var(--hera-gray-500);margin-bottom:4px;">Ready for SMS</div>
+            <div style="font-size:20px;font-weight:700;color:var(--hera-accent);" id="summaryReady">—</div>
+        </div>
+    </div>
+</div>
+
+<!-- Filters & Actions -->
+<div class="card" style="margin-bottom:20px;">
+    <div class="card-body" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:12px;">
+        <input type="text" id="searchInput" placeholder="Search by driver name or route code..."
+               style="flex:1;min-width:200px;padding:8px 12px;border:1px solid var(--hera-gray-200);border-radius:6px;font-size:13px;"
+               onkeyup="applyFilters()">
+        <select id="statusFilter" style="padding:8px 12px;border:1px solid var(--hera-gray-200);border-radius:6px;font-size:13px;" onchange="applyFilters()">
+            <option value="">All Status</option>
+            <option value="matched">Matched</option>
+            <option value="unmatched">Unmatched</option>
+            <option value="ambiguous">Ambiguous</option>
+        </select>
+        <button class="btn btn-outline" id="retryLoadBtn" onclick="retryLoad()">
+            Retry Load
+        </button>
+        <button class="btn btn-primary" id="sendSmsBtn" disabled onclick="sendBatchSms()" style="display:none;">
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+            Send SMS for Ready Routes
+        </button>
+    </div>
+</div>
+
+<!-- Routes Table -->
+<div class="card">
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Route Code</th>
+                    <th>Driver Name</th>
+                    <th>DSP</th>
+                    <th>Transporter ID</th>
+                    <th>Match Status</th>
+                    <th>Linked Driver</th>
+                    <th>Phone</th>
+                    <th>SMS Status</th>
+                    <th style="width:120px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="routesBody">
+                <tr class="empty-row"><td colspan="9"><span class="spinner"></span> Loading routes...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Link Driver Modal -->
+<div class="modal-overlay" id="linkDriverModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Link Driver</h3>
+            <button class="modal-close" onclick="closeLinkModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div style="margin-bottom:16px;">
+                <div style="font-size:12px;color:var(--hera-gray-500);margin-bottom:4px;">Route</div>
+                <div style="font-size:14px;font-weight:600;color:var(--hera-gray-800);" id="modalRouteName">—</div>
+                <div style="font-size:12px;color:var(--hera-gray-500);margin-top:6px;">
+                    Pick an existing saved driver to attach this route without creating a new record.
+                </div>
+            </div>
+            <div style="margin-bottom:16px;">
+                <label style="display:block;font-size:12px;font-weight:600;color:var(--hera-gray-700);margin-bottom:8px;">Select Driver</label>
+                <select id="driverSelect" style="width:100%;padding:8px 12px;border:1px solid var(--hera-gray-200);border-radius:6px;font-size:13px;"></select>
+            </div>
+            <div class="alert" id="linkResult" style="display:none;"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeLinkModal()">Cancel</button>
+            <button class="btn btn-primary" id="linkBtn" onclick="linkDriver()">Link Driver</button>
+        </div>
+    </div>
+</div>
+
+<!-- Add Driver Modal -->
+<div class="modal-overlay" id="addDriverModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Add Driver</h3>
+            <button class="modal-close" onclick="closeAddDriverModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div style="margin-bottom:16px;">
+                <div style="font-size:12px;color:var(--hera-gray-500);margin-bottom:4px;">Route</div>
+                <div style="font-size:14px;font-weight:600;color:var(--hera-gray-800);" id="addDriverRouteName">—</div>
+                <div style="font-size:12px;color:var(--hera-gray-500);margin-top:6px;">
+                    Create a new driver profile when the route belongs to someone not already in the system.
+                </div>
+            </div>
+            <div class="grid-2" style="margin-bottom:12px;">
+                <div class="form-group">
+                    <label style="display:block;font-size:12px;font-weight:600;color:var(--hera-gray-700);margin-bottom:8px;" for="addDriverName">Driver Name</label>
+                    <input type="text" id="addDriverName" style="width:100%;padding:8px 12px;border:1px solid var(--hera-gray-200);border-radius:6px;font-size:13px;">
+                </div>
+                <div class="form-group">
+                    <label style="display:block;font-size:12px;font-weight:600;color:var(--hera-gray-700);margin-bottom:8px;" for="addDriverPhone">Phone Number</label>
+                    <input type="tel" id="addDriverPhone" style="width:100%;padding:8px 12px;border:1px solid var(--hera-gray-200);border-radius:6px;font-size:13px;">
+                </div>
+            </div>
+            <div class="grid-2" style="margin-bottom:12px;">
+                <div class="form-group">
+                    <label style="display:block;font-size:12px;font-weight:600;color:var(--hera-gray-700);margin-bottom:8px;" for="addDriverTransporterId">Transporter ID</label>
+                    <input type="text" id="addDriverTransporterId" style="width:100%;padding:8px 12px;border:1px solid var(--hera-gray-200);border-radius:6px;font-size:13px;">
+                </div>
+                <div class="form-group">
+                    <label style="display:block;font-size:12px;font-weight:600;color:var(--hera-gray-700);margin-bottom:8px;" for="addDriverDsp">DSP</label>
+                    <input type="text" id="addDriverDsp" style="width:100%;padding:8px 12px;border:1px solid var(--hera-gray-200);border-radius:6px;font-size:13px;">
+                </div>
+            </div>
+            <div class="form-group" style="margin-bottom:12px;">
+                <label style="display:block;font-size:12px;font-weight:600;color:var(--hera-gray-700);margin-bottom:8px;" for="addDriverStatus">Status</label>
+                <select id="addDriverStatus" style="width:100%;padding:8px 12px;border:1px solid var(--hera-gray-200);border-radius:6px;font-size:13px;">
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                </select>
+            </div>
+            <div class="alert" id="addDriverResult" style="display:none;"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeAddDriverModal()">Cancel</button>
+            <button class="btn btn-primary" id="addDriverBtn" onclick="saveNewDriver()">Add & Link Driver</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let batchId = new URLSearchParams(window.location.search).get('batch_id');
+    let currentRouteId = null;
+    let currentAddDriverRoute = null;
+    let allDrivers = [];
+    let allRoutes = [];
+    const routeMap = new Map();
+    let driversLoadPromise = null;
+
+    if (!batchId) {
+        alert('Batch ID not provided');
+        window.location.href = '{% url "dashboard" %}';
+    }
+
+    async function fetchWithTimeout(url, options = {}, timeoutMs = 15000) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+        try {
+            return await fetch(url, { ...options, signal: controller.signal });
+        } finally {
+            clearTimeout(timeoutId);
+        }
+    }
+
+    async function parseResponseBody(resp) {
+        const contentType = resp.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+            return await resp.json();
+        }
+
+        const text = await resp.text();
+        return {
+            error: text ? text.slice(0, 300) : 'Empty response body',
+        };
+    }
+
+    function showRoutesError(message) {
+        const tbody = document.getElementById('routesBody');
+        tbody.innerHTML = `<tr class="empty-row"><td colspan="9" style="color:var(--hera-red)">${escapeHtml(message)}</td></tr>`;
+    }
+
+    function getRouteById(routeId) {
+        return routeMap.get(routeId) || allRoutes.find(route => route.id === routeId);
+    }
+
+    function delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    async function loadWithRetry(loader, retries = 3, retryDelayMs = 1000) {
+        let lastError = null;
+
+        for (let attempt = 0; attempt <= retries; attempt += 1) {
+            try {
+                return await loader();
+            } catch (error) {
+                lastError = error;
+                if (attempt < retries) {
+                    await delay(retryDelayMs);
+                }
+            }
+        }
+
+        throw lastError;
+    }
+
+    // Load batch and routes on page load
+    async function loadBatch(showError = true) {
+        try {
+            const resp = await fetchWithTimeout(`${API_BASE}/routes/import/${batchId}/`);
+
+            if (!resp.ok) {
+                const error = await parseResponseBody(resp);
+                console.error('Error loading batch: HTTP', resp.status, error);
+                if (showError) {
+                    document.getElementById('summaryTotal').textContent = 'Error';
+                    document.getElementById('summaryMatched').textContent = '—';
+                    document.getElementById('summaryAmbiguous').textContent = '—';
+                    document.getElementById('summaryUnmatched').textContent = '—';
+                    document.getElementById('summaryReady').textContent = '—';
+                    showRoutesError(`Unable to load batch details (HTTP ${resp.status}). Please re-upload or open from dashboard.`);
+                    return;
+                }
+
+                throw new Error(`Unable to load batch details (HTTP ${resp.status})`);
+            }
+
+            const batch = await parseResponseBody(resp);
+            if (!batch || typeof batch !== 'object' || !('total_rows' in batch)) {
+                throw new Error('Unexpected batch response format');
+            }
+
+            document.getElementById('fileName').textContent = batch.file_name;
+            document.getElementById('batchTime').textContent = new Date(batch.created_at).toLocaleString();
+            document.getElementById('summaryTotal').textContent = batch.total_rows;
+            document.getElementById('summaryMatched').textContent = batch.matched_rows;
+            document.getElementById('summaryAmbiguous').textContent = batch.ambiguous_rows;
+            document.getElementById('summaryUnmatched').textContent = batch.unmatched_rows;
+            document.getElementById('summaryReady').textContent = batch.ready_for_sms_rows;
+
+            // Show send SMS button if there are ready routes
+            if (batch.ready_for_sms_rows > 0) {
+                document.getElementById('sendSmsBtn').disabled = false;
+                document.getElementById('sendSmsBtn').style.display = 'inline-flex';
+            }
+        } catch(e) {
+            if (showError) {
+                console.error('Error loading batch:', e);
+                document.getElementById('summaryTotal').textContent = 'Error';
+                document.getElementById('summaryMatched').textContent = '—';
+                document.getElementById('summaryAmbiguous').textContent = '—';
+                document.getElementById('summaryUnmatched').textContent = '—';
+                document.getElementById('summaryReady').textContent = '—';
+                showRoutesError('Unable to load batch details. Please go back and upload again.');
+                return;
+            }
+
+            throw e;
+        }
+    }
+
+    async function loadRoutes(showError = true) {
+        const tbody = document.getElementById('routesBody');
+        tbody.innerHTML = '<tr class="empty-row"><td colspan="9"><span class="spinner"></span> Loading routes...</td></tr>';
+
+        try {
+            const resp = await fetchWithTimeout(`${API_BASE}/routes/import/${batchId}/routes/?limit=500`);
+
+            if (!resp.ok) {
+                const error = await parseResponseBody(resp);
+                console.error('API Error:', resp.status, error);
+                if (showError) {
+                    showRoutesError(`Error loading routes (HTTP ${resp.status})`);
+                    return;
+                }
+
+                throw new Error(`Error loading routes (HTTP ${resp.status})`);
+            }
+
+            const data = await parseResponseBody(resp);
+            allRoutes = Array.isArray(data) ? data : (data.results || []);
+
+            if (!allRoutes.length) {
+                tbody.innerHTML = '<tr class="empty-row"><td colspan="9">No routes found</td></tr>';
+                return;
+            }
+
+            renderRoutes(allRoutes);
+        } catch(e) {
+            if (showError) {
+                console.error('Error loading routes:', e);
+                const message = e && e.name === 'AbortError'
+                    ? 'Request timed out while loading routes'
+                    : (e && e.message ? e.message : 'Unknown error');
+                showRoutesError(`Error loading routes: ${message}`);
+                return;
+            }
+
+            throw e;
+        }
+    }
+
+    async function retryLoad() {
+        const btn = document.getElementById('retryLoadBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span> Retrying...';
+        try {
+            await Promise.all([loadBatch(true), loadRoutes(true)]);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Retry Load';
+        }
+    }
+
+    function renderRoutes(routes) {
+        const tbody = document.getElementById('routesBody');
+        tbody.innerHTML = routes.map(r => {
+            routeMap.set(r.id, r);
+            let statusBadge = '';
+            if (r.match_status === 'matched') statusBadge = '<span class="badge badge-green">Matched</span>';
+            else if (r.match_status === 'unmatched') statusBadge = '<span class="badge badge-red">Unmatched</span>';
+            else statusBadge = '<span class="badge badge-yellow">Ambiguous</span>';
+
+            let smsBadge = '';
+            if (r.sms_status === 'ready') smsBadge = '<span class="badge badge-blue">Ready</span>';
+            else if (r.sms_status === 'sent') smsBadge = '<span class="badge badge-green">Sent</span>';
+            else if (r.sms_status === 'blocked') smsBadge = '<span class="badge badge-red">Blocked</span>';
+            else smsBadge = `<span class="badge badge-gray">${r.sms_status_display || r.sms_status}</span>`;
+
+            let action = '';
+            if (r.match_status === 'unmatched' || r.match_status === 'ambiguous') {
+                action = `
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                        <button class="btn btn-outline btn-sm" onclick="openLinkModal(${r.id})">Link Existing</button>
+                        <button class="btn btn-primary btn-sm" onclick="openAddDriverModal(${r.id})">Add Driver</button>
+                    </div>
+                `;
+            } else if (r.sms_status === 'ready') {
+                action = `<button class="btn btn-primary btn-sm" onclick="sendSingleSms(${r.id}, this)">Send SMS</button>`;
+            } else if (r.sms_status === 'sent') {
+                action = `<button class="btn btn-outline btn-sm" onclick="sendSingleSms(${r.id}, this)">Resend</button>`;
+            }
+
+            return `<tr>
+                <td><strong>${escapeHtml(r.route_code)}</strong></td>
+                <td>${escapeHtml(r.driver_name_raw)}</td>
+                <td>${escapeHtml(r.dsp || '—')}</td>
+                <td>${escapeHtml(r.transporter_id || '—')}</td>
+                <td>${statusBadge}</td>
+                <td>${r.driver_name ? `<strong>${escapeHtml(r.driver_name)}</strong>` : '—'}</td>
+                <td>${r.driver_phone || '—'}</td>
+                <td>${smsBadge}</td>
+                <td>${action}</td>
+            </tr>`;
+        }).join('');
+    }
+
+    function applyFilters() {
+        const search = document.getElementById('searchInput').value.toLowerCase();
+        const status = document.getElementById('statusFilter').value;
+
+        const filtered = allRoutes.filter(r => {
+            const matchSearch = !search ||
+                r.route_code.toLowerCase().includes(search) ||
+                r.driver_name_raw.toLowerCase().includes(search);
+            const matchStatus = !status || r.match_status === status;
+            return matchSearch && matchStatus;
+        });
+
+        renderRoutes(filtered);
+    }
+
+    async function loadDrivers(force = false) {
+        if (driversLoadPromise && !force) {
+            return driversLoadPromise;
+        }
+
+        driversLoadPromise = (async () => {
+            const resp = await fetch(`${API_BASE}/drivers/?page_size=500`);
+            if (!resp.ok) {
+                throw new Error(`Failed to load drivers (HTTP ${resp.status})`);
+            }
+
+            const data = await resp.json();
+            allDrivers = data.results || data;
+            return allDrivers;
+        })();
+
+        try {
+            return await driversLoadPromise;
+        } catch (e) {
+            console.error('Error loading drivers:', e);
+            driversLoadPromise = null;
+            throw e;
+        }
+    }
+
+    async function openLinkModal(routeId) {
+        currentRouteId = routeId;
+        const route = getRouteById(routeId);
+        document.getElementById('modalRouteName').textContent = route
+            ? `${route.route_code} • ${route.driver_name_raw || 'Unknown driver'}`
+            : `Route #${routeId}`;
+
+        const select = document.getElementById('driverSelect');
+        select.innerHTML = '<option value="">Loading drivers...</option>';
+
+        document.getElementById('linkResult').style.display = 'none';
+        document.getElementById('linkDriverModal').classList.add('show');
+
+        try {
+            if (!allDrivers.length) {
+                await loadDrivers();
+            }
+
+            if (!allDrivers.length) {
+                select.innerHTML = '<option value="">No drivers available</option>';
+                document.getElementById('linkResult').className = 'alert alert-error show';
+                document.getElementById('linkResult').innerHTML = 'No saved drivers were found. Add one first, then link it here.';
+                document.getElementById('linkResult').style.display = 'block';
+                return;
+            }
+
+            select.innerHTML = '<option value="">-- Select a driver --</option>' +
+                allDrivers.map(d => `<option value="${d.id}">${escapeHtml(d.name)} ${d.phone ? `(${d.phone})` : ''}</option>`).join('');
+        } catch (e) {
+            console.error('Unable to populate driver list:', e);
+            select.innerHTML = '<option value="">Unable to load drivers</option>';
+            document.getElementById('linkResult').className = 'alert alert-error show';
+            document.getElementById('linkResult').innerHTML = 'Unable to load existing drivers right now. Please try again.';
+            document.getElementById('linkResult').style.display = 'block';
+        }
+    }
+
+    function openAddDriverModal(routeId) {
+        const route = getRouteById(routeId);
+        currentAddDriverRoute = route;
+        if (!route) {
+            alert('Could not find the selected route. Please reload the page and try again.');
+            return;
+        }
+
+        document.getElementById('addDriverRouteName').textContent = `${route.route_code} • ${route.driver_name_raw || 'New driver'}`;
+        document.getElementById('addDriverName').value = route.driver_name_raw || '';
+        document.getElementById('addDriverPhone').value = '';
+        document.getElementById('addDriverTransporterId').value = route.transporter_id || '';
+        document.getElementById('addDriverDsp').value = route.dsp || '';
+        document.getElementById('addDriverStatus').value = 'active';
+        const result = document.getElementById('addDriverResult');
+        result.style.display = 'none';
+        result.className = 'alert';
+        result.innerHTML = '';
+        document.getElementById('addDriverModal').classList.add('show');
+    }
+
+    function closeLinkModal() {
+        document.getElementById('linkDriverModal').classList.remove('show');
+        currentRouteId = null;
+    }
+
+    function closeAddDriverModal() {
+        document.getElementById('addDriverModal').classList.remove('show');
+        currentAddDriverRoute = null;
+    }
+
+    async function linkDriver() {
+        const driverId = parseInt(document.getElementById('driverSelect').value);
+        if (!driverId) {
+            alert('Please select a driver');
+            return;
+        }
+
+        const btn = document.getElementById('linkBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span> Linking...';
+
+        try {
+            const resp = await fetch(`${API_BASE}/routes/${currentRouteId}/link-driver/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken(),
+                },
+                body: JSON.stringify({ driver_id: driverId }),
+            });
+
+            if (resp.ok) {
+                loadRoutes();
+                loadBatch();
+                setTimeout(() => closeLinkModal(), 1000);
+            } else {
+                const data = await resp.json();
+                document.getElementById('linkResult').className = 'alert alert-error show';
+                document.getElementById('linkResult').innerHTML = `Error: ${escapeHtml(data.error || 'Failed')}`;
+                document.getElementById('linkResult').style.display = 'block';
+            }
+        } catch(e) {
+            document.getElementById('linkResult').className = 'alert alert-error show';
+            document.getElementById('linkResult').innerHTML = 'Network error';
+            document.getElementById('linkResult').style.display = 'block';
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Link Driver';
+        }
+    }
+
+    async function saveNewDriver() {
+        if (!currentAddDriverRoute) {
+            alert('No route selected');
+            return;
+        }
+
+        const name = document.getElementById('addDriverName').value.trim();
+        const phone = document.getElementById('addDriverPhone').value.trim();
+        const transporter_id = document.getElementById('addDriverTransporterId').value.trim();
+        const dsp = document.getElementById('addDriverDsp').value.trim();
+        const status = document.getElementById('addDriverStatus').value;
+        const result = document.getElementById('addDriverResult');
+
+        if (!name) {
+            result.className = 'alert alert-error show';
+            result.innerHTML = 'Driver name is required.';
+            result.style.display = 'block';
+            return;
+        }
+
+        const btn = document.getElementById('addDriverBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span> Saving...';
+
+        try {
+            const resp = await fetch(`${API_BASE}/routes/${currentAddDriverRoute.id}/create-driver/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken(),
+                },
+                body: JSON.stringify({ name, phone, transporter_id, dsp, status }),
+            });
+
+            if (resp.ok) {
+                closeAddDriverModal();
+                loadDrivers();
+                loadRoutes();
+                loadBatch();
+            } else {
+                const data = await resp.json();
+                const msg = Object.values(data).flat().join(', ');
+                result.className = 'alert alert-error show';
+                result.innerHTML = `<strong>Error:</strong> ${escapeHtml(msg || 'Failed to add driver')}`;
+                result.style.display = 'block';
+            }
+        } catch(e) {
+            result.className = 'alert alert-error show';
+            result.innerHTML = 'Network error';
+            result.style.display = 'block';
+        }
+
+        btn.disabled = false;
+        btn.textContent = 'Add & Link Driver';
+    }
+
+    async function sendSingleSms(routeId, btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span>';
+
+        try {
+            const resp = await fetch(`${API_BASE}/routes/${routeId}/send-sms/`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': getCsrfToken() },
+            });
+
+            if (resp.ok) {
+                loadRoutes();
+                loadBatch();
+            } else {
+                const data = await resp.json();
+                alert('Error: ' + (data.error || 'Failed to send SMS'));
+                btn.disabled = false;
+                btn.textContent = 'Send SMS';
+            }
+        } catch(e) {
+            alert('Network error');
+            btn.disabled = false;
+            btn.textContent = 'Send SMS';
+        }
+    }
+
+    async function sendBatchSms() {
+        if (!confirm('Send SMS for all ready routes in this batch?')) return;
+
+        const btn = document.getElementById('sendSmsBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span> Sending...';
+
+        try {
+            const resp = await fetch(`${API_BASE}/routes/import/${batchId}/send-sms/`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': getCsrfToken() },
+            });
+
+            const data = await resp.json();
+            if (resp.ok) {
+                alert(`SMS sent: ${data.sent}\nFailed: ${data.failed}`);
+                loadRoutes();
+                loadBatch();
+            } else {
+                alert('Error: ' + (data.error || 'Failed to send SMS'));
+            }
+        } catch(e) {
+            alert('Network error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg> Send SMS for Ready Routes';
+        }
+    }
+
+    function goBack() {
+        window.location.href = '{% url "dashboard" %}';
+    }
+
+    async function initializePage() {
+        if (!batchId) {
+            return;
+        }
+
+        try {
+            loadDrivers().catch(error => console.warn('Driver list failed to load on initial pass:', error));
+            await Promise.all([
+                loadWithRetry(() => loadBatch(false)),
+                loadWithRetry(() => loadRoutes(false)),
+            ]);
+        } catch (e) {
+            console.warn('Initial import review load needed fallback rendering:', e);
+            await loadBatch(true);
+            await loadRoutes(true);
+        }
+    }
+
+    // Initialize
+    initializePage();
+</script>
+
+<style>
+.badge {
+    display:inline-block;
+    padding:4px 8px;
+    border-radius:3px;
+    font-size:11px;
+    font-weight:600;
+}
+.badge-green { background:var(--hera-green-light);color:var(--hera-green); }
+.badge-red { background:var(--hera-red-light);color:var(--hera-red); }
+.badge-yellow { background:var(--hera-yellow-light);color:var(--hera-yellow); }
+.badge-blue { background:var(--hera-blue-light);color:var(--hera-blue); }
+.badge-gray { background:var(--hera-gray-100);color:var(--hera-gray-600); }
+</style>
+{% endblock %}

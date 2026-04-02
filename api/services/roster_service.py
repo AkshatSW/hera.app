@@ -1,4 +1,3 @@
-import re
 import pandas as pd
 import logging
 from datetime import datetime
@@ -7,31 +6,21 @@ from api.models import Driver, Vehicle, Assignment
 logger = logging.getLogger(__name__)
 
 REQUIRED_COLUMNS = [
-    'Driver Name',
-    'Phone',
-    'Vehicle Code',
-    'Vehicle Plate',
-    'Route',
-    'Staging',
-    'Pad',
-    'Wave Time',
-    'Date',
+    'Route code',
+    'DSP',
+    'Transporter Id',
+    'Driver name',
+    'Route progress',
+    'Delivery service type',
+    'Route duration',
+    'All stops',
+    'Stops completed',
+    'Not started stops',
 ]
 
 
-def validate_phone(phone):
-    """Validate phone number format: +countrycode number."""
-    phone = str(phone).strip()
-    if not phone.startswith('+'):
-        phone = '+' + phone
-    pattern = r'^\+\d{7,15}$'
-    if not re.match(pattern, phone):
-        return None
-    return phone
-
-
 def parse_roster(file, user):
-    """Parse an Excel roster file and create drivers, vehicles, and assignments.
+    """Parse an Excel roster file and create drivers and assignments.
 
     Returns a dict with counts and any errors encountered.
     """
@@ -61,90 +50,77 @@ def parse_roster(file, user):
     for index, row in df.iterrows():
         row_num = index + 2  # Excel rows start at 1, header is row 1
         try:
-            # Validate phone
-            phone = validate_phone(row['Phone'])
-            if not phone:
-                results['errors'].append(f"Row {row_num}: Invalid phone number '{row['Phone']}'")
-                continue
+            driver_name = str(row['Driver name']).strip()
+            route_code = str(row['Route code']).strip()
+
+            # Create a unique phone by hashing driver name + route code
+            # (since phone is not provided in the new format)
+            phone = f"+1{hash(driver_name + route_code) % 9000000000 + 1000000000}"
 
             # Get or create driver (scoped to user)
             driver, created = Driver.objects.get_or_create(
                 user=user,
                 phone=phone,
-                defaults={'name': str(row['Driver Name']).strip()},
+                defaults={'name': driver_name},
             )
             if created:
                 results['drivers_created'] += 1
 
-            # Get or create vehicle (scoped to user)
-            vehicle_code = str(row['Vehicle Code']).strip()
-            plate_number = str(row['Vehicle Plate']).strip()
+            # Create a simple vehicle (scoped to user)
+            vehicle_code = f"{route_code}_VEH"
             vehicle, created = Vehicle.objects.get_or_create(
                 user=user,
                 vehicle_code=vehicle_code,
-                defaults={'plate_number': plate_number},
+                defaults={'plate_number': ''},
             )
             if created:
                 results['vehicles_created'] += 1
 
-            # Parse wave time
-            wave_time_raw = row['Wave Time']
-            if isinstance(wave_time_raw, datetime):
-                wave_time = wave_time_raw.time()
-            elif isinstance(wave_time_raw, str):
-                for fmt in ('%I:%M %p', '%H:%M', '%I:%M%p'):
-                    try:
-                        wave_time = datetime.strptime(wave_time_raw.strip(), fmt).time()
-                        break
-                    except ValueError:
-                        continue
-                else:
-                    results['errors'].append(f"Row {row_num}: Invalid wave time '{wave_time_raw}'")
-                    continue
-            else:
-                wave_time = wave_time_raw
-
-            # Parse date
-            route_date_raw = row['Date']
-            if isinstance(route_date_raw, str):
-                for fmt in ('%m/%d/%Y', '%Y-%m-%d', '%d/%m/%Y'):
-                    try:
-                        route_date = datetime.strptime(route_date_raw.strip(), fmt).date()
-                        break
-                    except ValueError:
-                        continue
-                else:
-                    results['errors'].append(f"Row {row_num}: Invalid date '{route_date_raw}'")
-                    continue
-            elif isinstance(route_date_raw, datetime):
-                route_date = route_date_raw.date()
-            else:
-                route_date = route_date_raw
+            # Use default wave time and route date
+            wave_time = datetime.now().time()
+            route_date = datetime.now().date()
 
             # Check for duplicate assignment (scoped to user)
             existing = Assignment.objects.filter(
                 user=user,
                 driver=driver,
                 route_date=route_date,
-                route_code=str(row['Route']).strip(),
+                route_code=route_code,
             ).exists()
             if existing:
                 results['errors'].append(
-                    f"Row {row_num}: Duplicate assignment for {driver.name} on {route_date}"
+                    f"Row {row_num}: Duplicate assignment for {driver_name} on {route_date}"
                 )
                 continue
+
+            # Parse delivery service type
+            delivery_service_type = str(row['Delivery service type']).strip().upper()
+            if delivery_service_type not in ['AMZL', 'DSP', 'LINEHAUL']:
+                delivery_service_type = 'DSP'
+
+            # Parse route progress
+            route_progress = str(row['Route progress']).strip().lower()
+            if route_progress not in ['not_started', 'in_progress', 'completed']:
+                route_progress = 'not_started'
 
             # Create assignment (scoped to user)
             assignment = Assignment.objects.create(
                 user=user,
                 driver=driver,
                 vehicle=vehicle,
-                route_code=str(row['Route']).strip(),
-                staging=str(row['Staging']).strip(),
-                pad=str(row['Pad']).strip(),
+                route_code=route_code,
+                staging='',
+                pad='',
                 wave_time=wave_time,
                 route_date=route_date,
                 sms_status='pending',
+                dsp_name=str(row['DSP']).strip(),
+                transporter_id=str(row['Transporter Id']).strip(),
+                route_progress=route_progress,
+                delivery_service_type=delivery_service_type,
+                route_duration=str(row['Route duration']).strip(),
+                all_stops=int(row['All stops']) if pd.notna(row['All stops']) else 0,
+                not_started_stops=int(row['Not started stops']) if pd.notna(row['Not started stops']) else 0,
             )
             results['assignments_created'] += 1
             results['assignment_ids'].append(assignment.id)

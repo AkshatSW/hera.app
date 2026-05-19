@@ -49,6 +49,7 @@ def find_driver_matches(user, driver_name, transporter_id=None, dsp=None):
         matches = Driver.objects.filter(
             user=user,
             transporter_id=transporter_id,
+            status='active',
         )
         for driver in matches:
             if driver.id in candidate_ids:
@@ -76,6 +77,7 @@ def find_driver_matches(user, driver_name, transporter_id=None, dsp=None):
         matches = Driver.objects.filter(
             user=user,
             dsp=dsp,
+            status='active',
         )
         for driver in matches:
             if driver.id in candidate_ids:
@@ -100,7 +102,7 @@ def find_driver_matches(user, driver_name, transporter_id=None, dsp=None):
 
     # Priority 3: Exact name match (any driver) (only if no exact matches yet)
     if not any(c["confidence"] == 1.0 for c in candidates):
-        matches = Driver.objects.filter(user=user)
+        matches = Driver.objects.filter(user=user, status='active')
         for driver in matches:
             if driver.id in candidate_ids:
                 continue
@@ -115,7 +117,7 @@ def find_driver_matches(user, driver_name, transporter_id=None, dsp=None):
 
     # Priority 4: Fuzzy name match (any driver) - only if no exact matches yet
     if not any(c["confidence"] == 1.0 for c in candidates):
-        matches = Driver.objects.filter(user=user)
+        matches = Driver.objects.filter(user=user, status='active')
         for driver in matches:
             if driver.id in candidate_ids:
                 continue

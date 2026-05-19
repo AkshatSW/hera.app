@@ -64,8 +64,8 @@
             <div class="form-group">
                 <label for="assocStatus">Status</label>
                 <select id="assocStatus">
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
+                    <option value="active">Active (assignable)</option>
+                    <option value="inactive">Inactive — cannot assign routes</option>
                 </select>
             </div>
             <div class="alert" id="assocAlert"></div>
@@ -81,7 +81,14 @@
 <div class="card">
     <div class="card-header">
         <h2>All Associates</h2>
-        <input type="search" id="assocSearch" placeholder="Search by name or phone..." style="width:260px;" oninput="filterTable()">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <select id="assocStatusFilter" style="width:150px;padding:8px 10px;border:1px solid var(--hera-gray-200);border-radius:6px;font-size:13px;" onchange="filterTable()">
+                <option value="">All statuses</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+            </select>
+            <input type="search" id="assocSearch" placeholder="Search by name or phone..." style="width:260px;" oninput="filterTable()">
+        </div>
     </div>
     <div class="table-wrap">
         <table>
@@ -148,9 +155,14 @@
 
     function filterTable() {
         const q = document.getElementById('assocSearch').value.toLowerCase();
-        const filtered = allAssociates.filter(d =>
-            d.name.toLowerCase().includes(q) || d.phone.includes(q)
-        );
+        const statusSel = document.getElementById('assocStatusFilter').value;
+        const filtered = allAssociates.filter(d => {
+            const matchQ = !q ||
+                d.name.toLowerCase().includes(q) ||
+                ((d.phone || '').includes(q));
+            const matchStatus = !statusSel || d.status === statusSel;
+            return matchQ && matchStatus;
+        });
         renderTable(filtered);
     }
 

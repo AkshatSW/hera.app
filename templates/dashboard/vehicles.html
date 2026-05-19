@@ -39,7 +39,7 @@
         </div>
         <div class="stat-info">
             <div class="stat-value" id="stat-veh-inactive">—</div>
-            <div class="stat-label">Inactive</div>
+            <div class="stat-label">Grounded</div>
         </div>
     </div>
 </div>
@@ -66,8 +66,8 @@
             <div class="form-group">
                 <label for="vehStatus">Status</label>
                 <select id="vehStatus">
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
+                    <option value="active">Active (assignable)</option>
+                    <option value="inactive">Grounded — cannot assign to routes</option>
                 </select>
             </div>
             <div class="alert" id="vehAlert"></div>
@@ -83,7 +83,14 @@
 <div class="card">
     <div class="card-header">
         <h2>All Vehicles</h2>
-        <input type="search" id="vehSearch" placeholder="Search by code or plate..." style="width:260px;" oninput="filterTable()">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <select id="vehStatusFilter" style="width:190px;padding:8px 10px;border:1px solid var(--hera-gray-200);border-radius:6px;font-size:13px;" onchange="filterTable()">
+                <option value="">All statuses</option>
+                <option value="active">Active</option>
+                <option value="inactive">Grounded</option>
+            </select>
+            <input type="search" id="vehSearch" placeholder="Search by code or plate..." style="width:260px;" oninput="filterTable()">
+        </div>
     </div>
     <div class="table-wrap">
         <table>
@@ -122,6 +129,13 @@
         }
     }
 
+    function vehStatusBadge(status) {
+        if (status === 'inactive') {
+            return '<span class="badge badge-inactive">Grounded</span>';
+        }
+        return badgeHtml(status);
+    }
+
     function renderTable(items) {
         const tbody = document.getElementById('vehBody');
         if (!items.length) {
@@ -132,7 +146,7 @@
             <tr>
                 <td><strong>${escapeHtml(v.vehicle_code)}</strong></td>
                 <td style="font-family:monospace;font-size:13px;">${escapeHtml(v.plate_number)}</td>
-                <td>${badgeHtml(v.status)}</td>
+                <td>${vehStatusBadge(v.status)}</td>
                 <td>${formatDatetime(v.created_at)}</td>
                 <td>
                     <button class="btn btn-outline btn-sm" onclick='editVehicle(${JSON.stringify(v)})'>Edit</button>
@@ -150,9 +164,14 @@
 
     function filterTable() {
         const q = document.getElementById('vehSearch').value.toLowerCase();
-        const filtered = allVehicles.filter(v =>
-            v.vehicle_code.toLowerCase().includes(q) || v.plate_number.toLowerCase().includes(q)
-        );
+        const statusSel = document.getElementById('vehStatusFilter').value;
+        const filtered = allVehicles.filter(v => {
+            const matchQ = !q ||
+                v.vehicle_code.toLowerCase().includes(q) ||
+                v.plate_number.toLowerCase().includes(q);
+            const matchStatus = !statusSel || v.status === statusSel;
+            return matchQ && matchStatus;
+        });
         renderTable(filtered);
     }
 

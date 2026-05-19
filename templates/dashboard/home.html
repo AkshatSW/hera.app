@@ -19,6 +19,79 @@
 .badge-yellow { background:var(--hera-yellow-light);color:var(--hera-yellow); }
 .badge-blue { background:var(--hera-blue-light);color:var(--hera-blue); }
 .badge-gray { background:var(--hera-gray-100);color:var(--hera-gray-600); }
+
+.manual-draft-cell {
+    padding: 0 !important;
+    vertical-align: top;
+    border-bottom: 1px solid var(--hera-gray-200);
+}
+.manual-draft-panel {
+    margin: 12px 14px 18px;
+    padding: 18px 22px 22px;
+    background: var(--hera-blue-light);
+    border-radius: 10px;
+    border: 1px solid var(--hera-gray-200);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+.manual-draft-panel-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--hera-gray-800);
+    margin-bottom: 16px;
+}
+.manual-draft-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(196px, 1fr));
+    gap: 16px 20px;
+    align-items: end;
+}
+.manual-draft-field-wide {
+    grid-column: span 2;
+}
+@media (max-width: 720px) {
+    .manual-draft-field-wide {
+        grid-column: span 1;
+    }
+}
+.manual-draft-field label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--hera-gray-600);
+    margin-bottom: 7px;
+}
+.manual-draft-input,
+.manual-draft-select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--hera-gray-200);
+    border-radius: 8px;
+    font-size: 14px;
+    box-sizing: border-box;
+    background: #fff;
+}
+.manual-draft-select {
+    cursor: pointer;
+}
+.manual-draft-mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 13px;
+}
+.manual-draft-hint {
+    margin: 18px 0 0;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--hera-gray-600);
+    max-width: 52rem;
+}
+.manual-draft-actions {
+    margin-top: 18px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+}
 </style>
 {% endblock %}
 
@@ -140,6 +213,9 @@
                 <option value="blocked">Blocked</option>
             </select>
             <input type="search" id="routeSearch" placeholder="Search route, driver, DSP..." style="width:240px;" oninput="loadRoutes()">
+            <button type="button" class="btn btn-outline btn-sm" id="addManualRouteBtn" onclick="showManualRouteDraft()">
+                Add new route
+            </button>
             <button class="btn btn-outline btn-sm" onclick="clearRouteFilters()">Clear</button>
         </div>
     </div>
@@ -251,6 +327,216 @@
 
     // ===== Routes Table =====
     let allLoadedRoutes = [];
+    let manualDraftActive = false;
+
+    function manualDraftRowHtml() {
+        return `
+        <tr id="manualRouteDraftRow" class="manual-draft-row">
+            <td colspan="13" class="manual-draft-cell">
+                <div class="manual-draft-panel">
+                    <div class="manual-draft-panel-title">New route</div>
+                    <div class="manual-draft-grid">
+                        <div class="manual-draft-field manual-draft-field-wide">
+                            <label for="manualRouteCode">Route code</label>
+                            <input id="manualRouteCode" class="manual-draft-input" type="text" maxlength="50" autocomplete="off"
+                                value="DEX-99999-DEMO" placeholder="e.g. DEX-12345">
+                        </div>
+                        <div class="manual-draft-field">
+                            <label for="manualRouteDate">Route date</label>
+                            <input id="manualRouteDate" class="manual-draft-input" type="date" aria-label="Route date">
+                        </div>
+                        <div class="manual-draft-field manual-draft-field-wide">
+                            <label for="manualDsp">DSP</label>
+                            <input id="manualDsp" class="manual-draft-input" type="text"
+                                value="Example DSP LLC" placeholder="DSP name">
+                        </div>
+                        <div class="manual-draft-field">
+                            <label for="manualTransporterId">Transporter ID</label>
+                            <input id="manualTransporterId" class="manual-draft-input manual-draft-mono" type="text" maxlength="100"
+                                value="T-ID-99999" placeholder="Transporter ID">
+                        </div>
+                        <div class="manual-draft-field manual-draft-field-wide">
+                            <label for="manualDriverSelect">Associate</label>
+                            <select id="manualDriverSelect" class="manual-draft-input manual-draft-select" aria-describedby="manualDriverHint">
+                                <option value="">Loading associates…</option>
+                            </select>
+                        </div>
+                        <div class="manual-draft-field">
+                            <label for="manualRouteProgress">Progress</label>
+                            <select id="manualRouteProgress" class="manual-draft-input manual-draft-select">
+                                <option value="not_started" selected>Not started</option>
+                                <option value="in_progress">In progress</option>
+                                <option value="completed">Completed</option>
+                            </select>
+                        </div>
+                        <div class="manual-draft-field">
+                            <label for="manualServiceType">Service type</label>
+                            <select id="manualServiceType" class="manual-draft-input manual-draft-select">
+                                <option value="DSP" selected>DSP</option>
+                                <option value="AMZL">AMZL</option>
+                                <option value="LINEHAUL">LINEHAUL</option>
+                            </select>
+                        </div>
+                        <div class="manual-draft-field">
+                            <label for="manualRouteDuration">Duration</label>
+                            <input id="manualRouteDuration" class="manual-draft-input" type="text" maxlength="50"
+                                value="8h estimated" placeholder="e.g. 8 hours">
+                        </div>
+                        <div class="manual-draft-field">
+                            <label for="manualAllStops">All stops</label>
+                            <input id="manualAllStops" class="manual-draft-input" type="number" min="0" value="24">
+                        </div>
+                        <div class="manual-draft-field">
+                            <label for="manualStopsCompleted">Stops completed</label>
+                            <input id="manualStopsCompleted" class="manual-draft-input" type="number" min="0" value="0">
+                        </div>
+                        <div class="manual-draft-field">
+                            <label for="manualNotStartedStops">Not started stops</label>
+                            <input id="manualNotStartedStops" class="manual-draft-input" type="number" min="0" value="24">
+                        </div>
+                    </div>
+                    <p class="manual-draft-hint" id="manualDriverHint">New people must be added under <a href="{% url 'associates' %}">Associates</a> before they appear here. Only active associates can be assigned.</p>
+                    <p class="manual-draft-hint">SMS status still depends on whether the associate has a valid phone.</p>
+                    <div class="manual-draft-actions">
+                        <button type="button" class="btn btn-primary btn-sm" id="manualSaveBtn" onclick="saveManualRoute(this)">Save route</button>
+                        <button type="button" class="btn btn-outline btn-sm" onclick="hideManualRouteDraft()">Cancel</button>
+                    </div>
+                </div>
+            </td>
+        </tr>`;
+    }
+
+    async function loadAssociatesIntoManualDraft() {
+        const sel = document.getElementById('manualDriverSelect');
+        if (!sel) return;
+        sel.innerHTML = '';
+        sel.disabled = true;
+        const loading = document.createElement('option');
+        loading.value = '';
+        loading.textContent = 'Loading associates…';
+        sel.appendChild(loading);
+        try {
+            const resp = await fetch(`${API_BASE}/drivers/?page_size=500&status=active`, { credentials: 'same-origin' });
+            const data = await resp.json();
+            const list = Array.isArray(data) ? data : (data.results || []);
+            sel.innerHTML = '';
+            const ph = document.createElement('option');
+            ph.value = '';
+            ph.textContent = list.length ? '— Select associate —' : '— No active associates — add under Associates —';
+            sel.appendChild(ph);
+            list.slice().sort((a, b) => (a.name || '').localeCompare(b.name || '')).forEach(d => {
+                const opt = document.createElement('option');
+                opt.value = String(d.id);
+                opt.textContent = d.phone ? `${d.name} · ${d.phone}` : d.name;
+                sel.appendChild(opt);
+            });
+        } catch (e) {
+            sel.innerHTML = '';
+            const err = document.createElement('option');
+            err.value = '';
+            err.textContent = 'Could not load associates';
+            sel.appendChild(err);
+        }
+        sel.disabled = false;
+    }
+
+    function showManualRouteDraft() {
+        manualDraftActive = true;
+        const addBtn = document.getElementById('addManualRouteBtn');
+        if (addBtn) addBtn.disabled = true;
+        renderRoutes(Array.isArray(allLoadedRoutes) ? allLoadedRoutes : []);
+        loadAssociatesIntoManualDraft().then(() => {
+            requestAnimationFrame(() => {
+                const dateEl = document.getElementById('manualRouteDate');
+                const codeEl = document.getElementById('manualRouteCode');
+                const sel = document.getElementById('manualDriverSelect');
+                if (dateEl) dateEl.value = new Date().toISOString().slice(0, 10);
+                if (codeEl) {
+                    codeEl.focus();
+                    codeEl.select();
+                } else if (sel) sel.focus();
+            });
+        });
+    }
+
+    function hideManualRouteDraft() {
+        manualDraftActive = false;
+        const addBtn = document.getElementById('addManualRouteBtn');
+        if (addBtn) addBtn.disabled = false;
+        renderRoutes(Array.isArray(allLoadedRoutes) ? allLoadedRoutes : []);
+    }
+
+    async function saveManualRoute(btn) {
+        const route_code = document.getElementById('manualRouteCode').value.trim();
+        const sel = document.getElementById('manualDriverSelect');
+        const driverPk = sel && sel.value ? parseInt(sel.value, 10) : NaN;
+        if (!route_code) {
+            alert('Route code is required.');
+            return;
+        }
+        if (!Number.isFinite(driverPk)) {
+            alert('Select an associate. Add associates under Associates first, then reopen Add new route to refresh this list.');
+            return;
+        }
+
+        const body = {
+            route_code,
+            driver: driverPk,
+            dsp: document.getElementById('manualDsp').value.trim() || '',
+            transporter_id: document.getElementById('manualTransporterId').value.trim() || '',
+            route_progress: document.getElementById('manualRouteProgress').value,
+            delivery_service_type: document.getElementById('manualServiceType').value,
+            route_duration: document.getElementById('manualRouteDuration').value.trim() || '',
+            all_stops: parseInt(document.getElementById('manualAllStops').value, 10) || 0,
+            stops_completed: parseInt(document.getElementById('manualStopsCompleted').value, 10) || 0,
+            not_started_stops: parseInt(document.getElementById('manualNotStartedStops').value, 10) || 0,
+        };
+
+        const dateVal = document.getElementById('manualRouteDate').value;
+        if (dateVal) {
+            body.route_date = dateVal;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span>';
+
+        try {
+            const resp = await fetch(`${API_BASE}/routes/manual/`, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken(),
+                },
+                body: JSON.stringify(body),
+            });
+
+            let data = {};
+            try {
+                data = await resp.json();
+            } catch (parseErr) {
+                data = {};
+            }
+
+            if (resp.ok) {
+                hideManualRouteDraft();
+                await loadRoutes(true);
+            } else {
+                const msg = typeof data === 'object' && data && Object.keys(data).length
+                    ? (data.detail ||
+                        Object.entries(data).map(([k, v]) =>
+                            `${k}: ${Array.isArray(v) ? v.join(', ') : v}`
+                        ).join('; '))
+                    : 'Unable to save route';
+                alert(msg);
+            }
+        } catch (e) {
+            alert('Network error while saving route');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Save route';
+        }
+    }
 
     function updateLastImportDate(items) {
         const el = document.getElementById('lastImportDate');
@@ -299,12 +585,20 @@
 
     function renderRoutes(items) {
         const tbody = document.getElementById('routesBody');
-        if (!items.length) {
-            tbody.innerHTML = '<tr class="empty-row"><td colspan="13">No routes found</td></tr>';
+        const rows = [];
+        if (manualDraftActive) {
+            rows.push(manualDraftRowHtml());
+        }
+        if ((!items || !items.length) && !manualDraftActive) {
+            tbody.innerHTML = '<tr class="empty-row"><td colspan="13">No routes found. Upload a route file to get started.</td></tr>';
+            return;
+        }
+        if ((!items || !items.length) && manualDraftActive) {
+            tbody.innerHTML = rows.join('');
             return;
         }
 
-        tbody.innerHTML = items.map(r => {
+        items.forEach(r => {
             routeMap.set(r.id, r);
             const actionButtons = [];
             if (r.sms_status === 'ready') {
@@ -317,7 +611,7 @@
 
             const stops = `${escapeHtml(String(r.all_stops ?? '—'))} / ${escapeHtml(String(r.stops_completed ?? '—'))} / ${escapeHtml(String(r.not_started_stops ?? '—'))}`;
 
-            return `<tr>
+            rows.push(`<tr>
                 <td><strong>${escapeHtml(r.route_code)}</strong></td>
                 <td>${escapeHtml(r.dsp || '—')}</td>
                 <td style="font-family:monospace;font-size:13px;">${escapeHtml(r.transporter_id || '—')}</td>
@@ -331,8 +625,9 @@
                 <td>${escapeHtml(r.driver_phone || '—')}</td>
                 <td>${routeSmsBadge(r.sms_status, r.sms_status_display)}</td>
                 <td style="display:flex;gap:8px;flex-wrap:wrap;">${actionButtons.join('')}</td>
-            </tr>`;
-        }).join('');
+            </tr>`);
+        });
+        tbody.innerHTML = rows.join('');
     }
 
     async function loadRoutes(silent) {
@@ -369,7 +664,7 @@
             updateLastImportDate(allLoadedRoutes);
             updateRouteStats(allLoadedRoutes);
 
-            if (!allLoadedRoutes.length) {
+            if (!allLoadedRoutes.length && !manualDraftActive) {
                 tbody.innerHTML = '<tr class="empty-row"><td colspan="13">No routes found. Upload a route file to get started.</td></tr>';
                 return;
             }
@@ -422,7 +717,7 @@
     const routeMap = new Map();
 
     function getRouteById(routeId) {
-        return routeMap.get(routeId) || allRoutes.find(route => route.id === routeId);
+        return routeMap.get(routeId) || allLoadedRoutes.find(route => route.id === routeId);
     }
 
     async function deleteRoute(routeId) {
@@ -465,7 +760,9 @@
     // Auto-refresh routes every 30 seconds to keep page in sync
     // This ensures SMS status changes from import_review page are reflected here
     setInterval(() => {
-        loadRoutes(true);
+        if (!manualDraftActive) {
+            loadRoutes(true);
+        }
     }, 30000);
 </script>
 {% endblock %}

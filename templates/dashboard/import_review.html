@@ -412,7 +412,7 @@
         }
 
         driversLoadPromise = (async () => {
-            const resp = await fetch(`${API_BASE}/drivers/?page_size=500`);
+            const resp = await fetch(`${API_BASE}/drivers/?page_size=500&status=active`);
             if (!resp.ok) {
                 throw new Error(`Failed to load drivers (HTTP ${resp.status})`);
             }
@@ -525,9 +525,11 @@
                 loadBatch();
                 setTimeout(() => closeLinkModal(), 1000);
             } else {
-                const data = await resp.json();
+                const data = await parseResponseBody(resp);
+                const detail = data.error || data.detail || (typeof data === 'string' ? data : null);
+                const fallback = `Error: HTTP ${resp.status}`;
                 document.getElementById('linkResult').className = 'alert alert-error show';
-                document.getElementById('linkResult').innerHTML = `Error: ${escapeHtml(data.error || 'Failed')}`;
+                document.getElementById('linkResult').innerHTML = escapeHtml(detail || fallback);
                 document.getElementById('linkResult').style.display = 'block';
             }
         } catch(e) {

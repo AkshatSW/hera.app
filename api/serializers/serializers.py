@@ -31,6 +31,32 @@ class AssignmentSerializer(serializers.ModelSerializer):
         model = Assignment
         exclude = ['user']
 
+    def validate(self, attrs):
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+
+        instance = getattr(self, 'instance', None)
+        driver = attrs.get('driver', getattr(instance, 'driver', None))
+        vehicle = attrs.get('vehicle', getattr(instance, 'vehicle', None))
+
+        if driver is not None:
+            if user and driver.user_id != user.id:
+                raise serializers.ValidationError({'driver': 'Invalid associate for this account.'})
+            if driver.status != 'active':
+                raise serializers.ValidationError({
+                    'driver': 'Inactive associates cannot be assigned to routes.',
+                })
+
+        if vehicle is not None:
+            if user and vehicle.user_id != user.id:
+                raise serializers.ValidationError({'vehicle': 'Invalid vehicle for this account.'})
+            if vehicle.status != 'active':
+                raise serializers.ValidationError({
+                    'vehicle': 'Grounded vehicles cannot be assigned to routes.',
+                })
+
+        return attrs
+
 
 class SMSLogSerializer(serializers.ModelSerializer):
     driver_name = serializers.CharField(source='driver.name', read_only=True)
@@ -82,6 +108,39 @@ class DailyRouteSerializer(serializers.ModelSerializer):
     def get_sms_status_display(self, obj):
         """Return human-readable SMS status."""
         return dict(obj.SMS_STATUS_CHOICES).get(obj.sms_status, obj.sms_status)
+
+
+class ManualDailyRouteCreateSerializer(serializers.Serializer):
+    """Payload for adding a DailyRoute outside of Excel import."""
+    route_code = serializers.CharField(max_length=50)
+    driver = serializers.PrimaryKeyRelatedField(
+        queryset=Driver.objects.none(),
+        help_text='Active associate PK (must belong to current user)',
+    )
+    dsp = serializers.CharField(max_length=255, allow_blank=True, required=False, default='')
+    transporter_id = serializers.CharField(max_length=100, allow_blank=True, required=False, default='')
+    route_date = serializers.DateField(required=False, allow_null=True)
+    route_progress = serializers.ChoiceField(
+        choices=['not_started', 'in_progress', 'completed'],
+        default='not_started',
+        required=False,
+    )
+    delivery_service_type = serializers.ChoiceField(
+        choices=['AMZL', 'DSP', 'LINEHAUL'],
+        default='DSP',
+        required=False,
+    )
+    route_duration = serializers.CharField(max_length=50, allow_blank=True, required=False, default='')
+    all_stops = serializers.IntegerField(min_value=0, default=0, required=False)
+    stops_completed = serializers.IntegerField(min_value=0, default=0, required=False)
+    not_started_stops = serializers.IntegerField(min_value=0, default=0, required=False)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+        if user and getattr(user, 'is_authenticated', False):
+            self.fields['driver'].queryset = Driver.objects.filter(user=user, status='active')
 
 
 class DailyRouteLinkDriverSerializer(serializers.Serializer):

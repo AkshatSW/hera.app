@@ -13,6 +13,7 @@ from api.views import (
     ImportBatchDetailView,
     DailyRouteListView,
     DailyRouteDetailView,
+    DailyRouteManualCreateView,
     ImportBatchRoutesView,
     DailyRouteLinkDriverView,
     DailyRouteCreateDriverView,
@@ -44,6 +45,7 @@ urlpatterns = [
     # New Routes management
     path('routes/upload/', RoutesUploadView.as_view(), name='routes-upload'),
     path('routes/', DailyRouteListView.as_view(), name='route-list'),
+    path('routes/manual/', DailyRouteManualCreateView.as_view(), name='route-manual-create'),
     path('routes/<int:route_id>/', DailyRouteDetailView.as_view(), name='route-detail'),
     path('routes/import/<int:batch_id>/', ImportBatchDetailView.as_view(), name='import-batch-detail'),
     path('routes/import/<int:batch_id>/routes/', ImportBatchRoutesView.as_view(), name='batch-routes'),

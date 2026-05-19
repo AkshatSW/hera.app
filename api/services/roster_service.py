@@ -66,6 +66,12 @@ def parse_roster(file, user):
             if created:
                 results['drivers_created'] += 1
 
+            if driver.status != 'active':
+                results['errors'].append(
+                    f"Row {row_num}: Associate '{driver_name}' is inactive; cannot create route assignment."
+                )
+                continue
+
             # Create a simple vehicle (scoped to user)
             vehicle_code = f"{route_code}_VEH"
             vehicle, created = Vehicle.objects.get_or_create(
@@ -75,6 +81,12 @@ def parse_roster(file, user):
             )
             if created:
                 results['vehicles_created'] += 1
+
+            if vehicle.status != 'active':
+                results['errors'].append(
+                    f"Row {row_num}: Vehicle '{vehicle_code}' is grounded (inactive); cannot assign route."
+                )
+                continue
 
             # Use default wave time and route date
             wave_time = datetime.now().time()

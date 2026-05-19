@@ -16,10 +16,12 @@ from api.models import ImportBatch, DailyRoute, Driver, SMSLog
 from api.serializers.serializers import (
     ImportBatchSerializer,
     DailyRouteSerializer,
+    ManualDailyRouteCreateSerializer,
     DailyRouteLinkDriverSerializer,
     DriverSerializer,
 )
 from api.services.daily_route_import import parse_daily_routes_from_excel
+from api.services.manual_daily_route import create_manual_daily_route
 from api.services.sms_eligibility import is_route_sms_eligible, evaluate_sms_status
 from api.services.sms_builder import build_route_sms
 from api.services.sms_service import send_sms
@@ -160,6 +162,22 @@ class DailyRouteDetailView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+class DailyRouteManualCreateView(APIView):
+    """Create a DailyRoute by manual entry (not from file import)."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = ManualDailyRouteCreateSerializer(
+            data=request.data,
+            context={'request': request},
+        )
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        route = create_manual_daily_route(request.user, data=serializer.validated_data)
+        return Response(DailyRouteSerializer(route).data, status=status.HTTP_201_CREATED)
+
+
 class ImportBatchRoutesView(APIView):
     """List routes in an import batch with filtering."""
     permission_classes = [IsAuthenticated]
@@ -237,6 +255,12 @@ class DailyRouteLinkDriverView(APIView):
 
         driver_id = serializer.validated_data['driver_id']
         driver = get_object_or_404(Driver, id=driver_id, user=request.user)
+
+        if driver.status != 'active':
+            return Response(
+                {'error': 'This associate is inactive and cannot be linked to a route. Activate them in Associates first.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         # Link driver
         daily_route.driver = driver

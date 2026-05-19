@@ -32,6 +32,12 @@ def is_route_sms_eligible(daily_route):
             "reason": "No driver linked to this route",
         }
 
+    if getattr(daily_route.driver, "status", None) != "active":
+        return {
+            "eligible": False,
+            "reason": "Associate is inactive and cannot be assigned routes",
+        }
+
     # Check driver has phone
     if not daily_route.driver.phone:
         return {
@@ -76,6 +82,13 @@ def evaluate_sms_status(daily_route):
     if daily_route.match_status == "ambiguous":
         return "blocked"
     if daily_route.driver and not daily_route.driver.phone:
+        return "blocked"
+
+    if (
+        daily_route.match_status == "matched"
+        and daily_route.driver
+        and getattr(daily_route.driver, "status", None) != "active"
+    ):
         return "blocked"
 
     return "pending"
